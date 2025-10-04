@@ -1,10 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
+}
+
+interface WorkerResponse {
+  type: "test" | "doctor" | "none";
+  testName?: string;
+  reply: string;
 }
 
 interface ChatProps {
@@ -21,7 +29,57 @@ export default function Chat({ user, displayName }: ChatProps) {
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  // Hooks
+  const router = useRouter();
+  const { user: clerkUser } = useUser();
+
   // Functions
+  const handleTestResponse = async (
+    workerResponse: WorkerResponse,
+    userSymptom: string
+  ) => {
+    try {
+      const diagnosticsData = {
+        userId: clerkUser?.id || "anonymous",
+        symptom: userSymptom,
+        aiSummary: workerResponse.reply,
+        testName: workerResponse.testName,
+        hospital: "CuraNova Medical Center", // Default hospital
+        scheduledDate: new Date(
+          Date.now() + 7 * 24 * 60 * 60 * 1000
+        ).toISOString(), // 7 days from now
+      };
+
+      const response = await fetch("/api/diagnostics", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(diagnosticsData),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create diagnostic entry");
+      }
+
+      const diagnostic = await response.json();
+
+      // Navigate to the diagnostic details page
+      router.push(`/diagnostics/${diagnostic.id}`);
+    } catch (error) {
+      console.error("Error creating diagnostics entry:", error);
+      // Add error message to chat
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content:
+            "Sorry, I encountered an error while scheduling your test. Please try again or contact support.",
+        },
+      ]);
+    }
+  };
+
   const handleSendMessage = async () => {
     if (inputValue.trim() && !isLoading) {
       const userMessage: Message = {
@@ -51,15 +109,34 @@ export default function Chat({ user, displayName }: ChatProps) {
           throw new Error("Failed to get response");
         }
 
-        const data = await response.json();
+        const workerResponse: WorkerResponse = await response.json();
 
-        // Add assistant response
+        // Extract only the reply content for display
+        const replyContent =
+          workerResponse.reply || "I'm sorry, I couldn't process your request.";
+
+        // Add assistant response to messages
         const assistantMessage: Message = {
           role: "assistant",
-          content: data.reply || "I'm sorry, I couldn't process your request.",
+          content: replyContent,
         };
 
         setMessages((prev) => [...prev, assistantMessage]);
+
+        // Handle different response types
+        if (workerResponse.type === "test") {
+          await handleTestResponse(workerResponse, currentInput);
+        } else if (workerResponse.type === "doctor") {
+          // Navigate to appointments page
+          router.push("/appointments");
+        }
+
+        // Log the response type and testName for debugging
+        console.log("Worker Response:", {
+          type: workerResponse.type,
+          testName: workerResponse.testName,
+          hasReply: !!workerResponse.reply,
+        });
       } catch (error) {
         console.error("Error sending message:", error);
         // Add error message

@@ -25,7 +25,7 @@ export default async function page() {
   return (
     <div className="min-h-screen bg-white flex">
       {/* Sidebar */}
-      <DashboardSidebar user={user} displayName={displayName} />
+      <DashboardSidebar user={serializedUser} displayName={displayName} />
 
       {/* Main */}
       <main className="w-4/5 flex flex-col">
