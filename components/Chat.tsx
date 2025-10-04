@@ -11,6 +11,10 @@ import { useUser } from "@clerk/nextjs";
 
 // Components
 import MedicalInfoDialog from "./MedicalInfoDialog";
+import { MedicalInfoProvider } from "@/context/MedicalInfoContext";
+
+// Types
+import { DiagnosticPayload } from "@/types/medical";
 
 // Type Definitions
 interface Message {
@@ -58,23 +62,34 @@ export default function Chat({ user, displayName }: ChatProps) {
   };
 
   const handleMedicalDialogSubmit = async (
-    patientInfo: any,
-    selectedTests: string[]
+    payload: DiagnosticPayload
   ) => {
     try {
       if (!currentWorkerResponse) return;
 
+      // Transform DiagnosticPayload to match existing API structure
       const diagnosticsData = {
         userId: clerkUser?.id || "anonymous",
-        symptom: currentUserSymptom,
-        aiSummary: currentWorkerResponse.reply,
-        testName: selectedTests.join(", "), // Join selected tests
+        symptom: payload.userSymptom,
+        aiSummary: payload.aiSummary,
+        testName: payload.testSelection.selectedTests.join(", "),
         hospital: "Tampa General Hospital",
-        scheduledDate: new Date(
-          Date.now() + 7 * 24 * 60 * 60 * 1000
-        ).toISOString(),
-        patientInfo: patientInfo,
-        selectedTests: selectedTests,
+        scheduledDate: payload.appointmentInput.preferredDate,
+        patientInfo: {
+          firstName: payload.medicalInfo.firstName,
+          lastName: payload.medicalInfo.lastName,
+          email: payload.medicalInfo.email,
+          phone: payload.medicalInfo.phone,
+          address: payload.medicalInfo.street,
+          city: payload.medicalInfo.city,
+          state: payload.medicalInfo.state,
+          zipCode: payload.medicalInfo.zip,
+          dateOfBirth: payload.medicalInfo.dob,
+          insuranceProvider: payload.medicalInfo.insuranceProvider,
+          insuranceId: payload.medicalInfo.insuranceId,
+          insuranceGroup: payload.medicalInfo.groupNumber,
+        },
+        selectedTests: payload.testSelection.selectedTests,
       };
 
       const response = await fetch("/api/diagnostics", {
@@ -201,7 +216,8 @@ export default function Chat({ user, displayName }: ChatProps) {
   };
 
   return (
-    <div className="flex flex-col h-screen px-4">
+    <MedicalInfoProvider>
+      <div className="flex flex-col h-screen px-4">
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto mt-4 p-4 space-y-4 bg-gray-50 rounded-3xl">
         {messages.length === 0 ? (
@@ -297,5 +313,6 @@ export default function Chat({ user, displayName }: ChatProps) {
         />
       )}
     </div>
+    </MedicalInfoProvider>
   );
 }

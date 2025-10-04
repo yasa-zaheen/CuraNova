@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
+// Import availability calendar for single-date selection
+import AvailabilityCalendar from "@/components/availability/AvailabilityCalendar";
+// Import medical context and types
+import { useMedicalInfo } from "@/context/MedicalInfoContext";
+import { MedicalInfo, TestSelection, AppointmentInput, DiagnosticPayload } from "@/types/medical";
 
 interface MedicalTest {
   id: string;
@@ -21,25 +26,10 @@ interface MedicalTest {
   category: string;
 }
 
-interface PatientInfo {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  address: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  dateOfBirth: string;
-  insuranceProvider: string;
-  insuranceId: string;
-  insuranceGroup: string;
-}
-
 interface MedicalInfoDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (patientInfo: PatientInfo, selectedTests: string[]) => void;
+  onSubmit: (payload: DiagnosticPayload) => void;
   workerResponse: {
     type: string;
     testName?: string;
@@ -214,30 +204,27 @@ export default function MedicalInfoDialog({
   workerResponse,
   userSymptom,
 }: MedicalInfoDialogProps) {
-  const [patientInfo, setPatientInfo] = useState<PatientInfo>({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    address: "",
-    city: "",
-    state: "",
-    zipCode: "",
-    dateOfBirth: "",
-    insuranceProvider: "Blue Cross Blue Shield", // Sample default
-    insuranceId: "",
-    insuranceGroup: "",
-  });
+  // Use medical context for patient information
+  const { medicalInfo, setMedicalInfo, updateField } = useMedicalInfo();
 
   const [selectedTests, setSelectedTests] = useState<string[]>(() => {
     return getRecommendedTests(workerResponse?.testName, userSymptom);
   });
 
-  const handleInputChange = (field: keyof PatientInfo, value: string) => {
-    setPatientInfo((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+  // Single date selection for appointment scheduling
+  // Stores the preferred appointment date as ISO string (YYYY-MM-DD)
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  // Initialize recommended tests when dialog opens or worker response changes
+  useEffect(() => {
+    if (isOpen && workerResponse) {
+      const recommended = getRecommendedTests(workerResponse?.testName, userSymptom);
+      setSelectedTests(recommended);
+    }
+  }, [isOpen, workerResponse, userSymptom]);
+
+  const handleInputChange = (field: keyof MedicalInfo, value: string) => {
+    updateField(field, value);
   };
 
   const handleTestToggle = (testId: string) => {
@@ -249,14 +236,39 @@ export default function MedicalInfoDialog({
   };
 
   const handleSubmit = () => {
-    onSubmit(patientInfo, selectedTests);
+    // Create comprehensive diagnostic payload with all required information
+    const appointmentInput: AppointmentInput = {
+      preferredDate: selectedDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      timeSlot: 'morning', // Default to morning slot
+      notes: `Appointment for ${selectedTests.length} test(s): ${selectedTests.join(', ')}`,
+    };
+
+    const testSelection: TestSelection = {
+      selectedTests,
+      recommendedBy: workerResponse.type,
+      notes: workerResponse.reply,
+    };
+
+    const diagnosticPayload: DiagnosticPayload = {
+      medicalInfo,
+      testSelection,
+      appointmentInput,
+      userSymptom,
+      aiSummary: workerResponse.reply,
+    };
+
+    // Log for debugging
+    console.log('Diagnostic payload:', diagnosticPayload);
+    
+    // Pass comprehensive payload to parent
+    onSubmit(diagnosticPayload);
   };
 
   const isFormValid =
-    patientInfo.firstName &&
-    patientInfo.lastName &&
-    patientInfo.email &&
-    patientInfo.phone &&
+    medicalInfo.firstName &&
+    medicalInfo.lastName &&
+    medicalInfo.email &&
+    medicalInfo.phone &&
     selectedTests.length > 0;
 
   return (
@@ -279,7 +291,7 @@ export default function MedicalInfoDialog({
                 <Label htmlFor="firstName">First Name *</Label>
                 <Input
                   id="firstName"
-                  value={patientInfo.firstName}
+                  value={medicalInfo.firstName}
                   onChange={(e) =>
                     handleInputChange("firstName", e.target.value)
                   }
@@ -290,7 +302,7 @@ export default function MedicalInfoDialog({
                 <Label htmlFor="lastName">Last Name *</Label>
                 <Input
                   id="lastName"
-                  value={patientInfo.lastName}
+                  value={medicalInfo.lastName}
                   onChange={(e) =>
                     handleInputChange("lastName", e.target.value)
                   }
@@ -302,7 +314,7 @@ export default function MedicalInfoDialog({
                 <Input
                   id="email"
                   type="email"
-                  value={patientInfo.email}
+                  value={medicalInfo.email}
                   onChange={(e) => handleInputChange("email", e.target.value)}
                   placeholder="john.doe@email.com"
                 />
@@ -312,19 +324,19 @@ export default function MedicalInfoDialog({
                 <Input
                   id="phone"
                   type="tel"
-                  value={patientInfo.phone}
+                  value={medicalInfo.phone}
                   onChange={(e) => handleInputChange("phone", e.target.value)}
                   placeholder="(555) 123-4567"
                 />
               </div>
               <div>
-                <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                <Label htmlFor="dob">Date of Birth</Label>
                 <Input
-                  id="dateOfBirth"
+                  id="dob"
                   type="date"
-                  value={patientInfo.dateOfBirth}
+                  value={medicalInfo.dob}
                   onChange={(e) =>
-                    handleInputChange("dateOfBirth", e.target.value)
+                    handleInputChange("dob", e.target.value)
                   }
                 />
               </div>
@@ -338,11 +350,11 @@ export default function MedicalInfoDialog({
             </h3>
             <div className="grid grid-cols-1 gap-4">
               <div>
-                <Label htmlFor="address">Street Address</Label>
+                <Label htmlFor="street">Street Address</Label>
                 <Input
-                  id="address"
-                  value={patientInfo.address}
-                  onChange={(e) => handleInputChange("address", e.target.value)}
+                  id="street"
+                  value={medicalInfo.street}
+                  onChange={(e) => handleInputChange("street", e.target.value)}
                   placeholder="123 Main Street"
                 />
               </div>
@@ -351,7 +363,7 @@ export default function MedicalInfoDialog({
                   <Label htmlFor="city">City</Label>
                   <Input
                     id="city"
-                    value={patientInfo.city}
+                    value={medicalInfo.city}
                     onChange={(e) => handleInputChange("city", e.target.value)}
                     placeholder="Tampa"
                   />
@@ -360,18 +372,18 @@ export default function MedicalInfoDialog({
                   <Label htmlFor="state">State</Label>
                   <Input
                     id="state"
-                    value={patientInfo.state}
+                    value={medicalInfo.state}
                     onChange={(e) => handleInputChange("state", e.target.value)}
                     placeholder="FL"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="zipCode">ZIP Code</Label>
+                  <Label htmlFor="zip">ZIP Code</Label>
                   <Input
-                    id="zipCode"
-                    value={patientInfo.zipCode}
+                    id="zip"
+                    value={medicalInfo.zip}
                     onChange={(e) =>
-                      handleInputChange("zipCode", e.target.value)
+                      handleInputChange("zip", e.target.value)
                     }
                     placeholder="33601"
                   />
@@ -390,12 +402,13 @@ export default function MedicalInfoDialog({
                 <Label htmlFor="insuranceProvider">Insurance Provider</Label>
                 <select
                   id="insuranceProvider"
-                  value={patientInfo.insuranceProvider}
+                  value={medicalInfo.insuranceProvider}
                   onChange={(e) =>
                     handleInputChange("insuranceProvider", e.target.value)
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
+                  <option value="">Select Insurance Provider</option>
                   <option value="Blue Cross Blue Shield">
                     Blue Cross Blue Shield
                   </option>
@@ -411,7 +424,7 @@ export default function MedicalInfoDialog({
                 <Label htmlFor="insuranceId">Insurance ID</Label>
                 <Input
                   id="insuranceId"
-                  value={patientInfo.insuranceId}
+                  value={medicalInfo.insuranceId}
                   onChange={(e) =>
                     handleInputChange("insuranceId", e.target.value)
                   }
@@ -419,12 +432,12 @@ export default function MedicalInfoDialog({
                 />
               </div>
               <div>
-                <Label htmlFor="insuranceGroup">Group Number</Label>
+                <Label htmlFor="groupNumber">Group Number</Label>
                 <Input
-                  id="insuranceGroup"
-                  value={patientInfo.insuranceGroup}
+                  id="groupNumber"
+                  value={medicalInfo.groupNumber}
                   onChange={(e) =>
-                    handleInputChange("insuranceGroup", e.target.value)
+                    handleInputChange("groupNumber", e.target.value)
                   }
                   placeholder="GRP001"
                 />
@@ -480,6 +493,31 @@ export default function MedicalInfoDialog({
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Appointment Date Selection */}
+          {/* 
+            Integrated calendar for single-date appointment scheduling.
+            Positioned after test selection but before action buttons to maintain logical flow.
+            
+            Key features:
+            - 14-day window for near-term scheduling
+            - Single-select mode for specific appointment booking
+            - ISO date output for consistent database integration
+            - Visual feedback with emerald shading
+          */}
+          <div className="mt-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Select Preferred Appointment Date
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Choose your preferred date for the medical tests. We'll confirm availability and send you appointment details.
+            </p>
+            <AvailabilityCalendar
+              initial={null}                      // Start with no pre-selected date
+              onChange={setSelectedDate}          // Update local state with selected date
+              className="rounded-2xl"             // Match modal's rounded design
+            />
           </div>
 
           {/* Action Buttons */}
