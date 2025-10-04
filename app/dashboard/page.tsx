@@ -13,18 +13,6 @@ export default async function page() {
     user?.emailAddresses?.[0]?.emailAddress ||
     "Guest";
 
-  const initials = (() => {
-    if (user?.firstName) return user.firstName[0];
-    if (user?.fullName)
-      return user.fullName
-        .split(" ")
-        .map((n: string) => n[0])
-        .slice(0, 2)
-        .join("");
-    if (displayName) return displayName[0];
-    return "G";
-  })();
-
   return (
     <div className="min-h-screen bg-white flex">
       {/* Sidebar */}
