@@ -1,9 +1,18 @@
 "use client";
 
+// React
 import { useState } from "react";
+
+// Next
 import { useRouter } from "next/navigation";
+
+// Clerk
 import { useUser } from "@clerk/nextjs";
 
+// Components
+import MedicalInfoDialog from "./MedicalInfoDialog";
+
+// Type Definitions
 interface Message {
   role: "user" | "assistant";
   content: string;
@@ -28,6 +37,10 @@ export default function Chat({ user, displayName }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showMedicalDialog, setShowMedicalDialog] = useState(false);
+  const [currentWorkerResponse, setCurrentWorkerResponse] =
+    useState<WorkerResponse | null>(null);
+  const [currentUserSymptom, setCurrentUserSymptom] = useState("");
 
   // Hooks
   const router = useRouter();
@@ -38,16 +51,30 @@ export default function Chat({ user, displayName }: ChatProps) {
     workerResponse: WorkerResponse,
     userSymptom: string
   ) => {
+    // Open the medical information dialog
+    setCurrentWorkerResponse(workerResponse);
+    setCurrentUserSymptom(userSymptom);
+    setShowMedicalDialog(true);
+  };
+
+  const handleMedicalDialogSubmit = async (
+    patientInfo: any,
+    selectedTests: string[]
+  ) => {
     try {
+      if (!currentWorkerResponse) return;
+
       const diagnosticsData = {
         userId: clerkUser?.id || "anonymous",
-        symptom: userSymptom,
-        aiSummary: workerResponse.reply,
-        testName: workerResponse.testName,
-        hospital: "CuraNova Medical Center", // Default hospital
+        symptom: currentUserSymptom,
+        aiSummary: currentWorkerResponse.reply,
+        testName: selectedTests.join(", "), // Join selected tests
+        hospital: "Tampa General Hospital",
         scheduledDate: new Date(
           Date.now() + 7 * 24 * 60 * 60 * 1000
-        ).toISOString(), // 7 days from now
+        ).toISOString(),
+        patientInfo: patientInfo,
+        selectedTests: selectedTests,
       };
 
       const response = await fetch("/api/diagnostics", {
@@ -64,10 +91,16 @@ export default function Chat({ user, displayName }: ChatProps) {
 
       const diagnostic = await response.json();
 
+      // Close dialog and navigate
+      setShowMedicalDialog(false);
+      setCurrentWorkerResponse(null);
+      setCurrentUserSymptom("");
+
       // Navigate to the diagnostic details page
       router.push(`/diagnostics/${diagnostic.id}`);
     } catch (error) {
       console.error("Error creating diagnostics entry:", error);
+
       // Add error message to chat
       setMessages((prev) => [
         ...prev,
@@ -77,7 +110,16 @@ export default function Chat({ user, displayName }: ChatProps) {
             "Sorry, I encountered an error while scheduling your test. Please try again or contact support.",
         },
       ]);
+
+      // Close dialog
+      setShowMedicalDialog(false);
     }
+  };
+
+  const handleMedicalDialogClose = () => {
+    setShowMedicalDialog(false);
+    setCurrentWorkerResponse(null);
+    setCurrentUserSymptom("");
   };
 
   const handleSendMessage = async () => {
@@ -243,6 +285,17 @@ export default function Chat({ user, displayName }: ChatProps) {
           </div>
         </div>
       </div>
+
+      {/* Medical Information Dialog */}
+      {showMedicalDialog && currentWorkerResponse && (
+        <MedicalInfoDialog
+          isOpen={showMedicalDialog}
+          onClose={handleMedicalDialogClose}
+          onSubmit={handleMedicalDialogSubmit}
+          workerResponse={currentWorkerResponse}
+          userSymptom={currentUserSymptom}
+        />
+      )}
     </div>
   );
 }

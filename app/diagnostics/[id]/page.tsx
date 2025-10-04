@@ -81,10 +81,10 @@ export default async function DiagnosticDetailsPage({
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gray-50 p-4">
+      <div className="w-full">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-4">
           <div className="bg-gradient-to-r from-purple-400 to-pink-400 text-white p-6">
             <h1 className="text-3xl font-bold">Diagnostic Assessment</h1>
             <p className="text-purple-100 mt-2">Assessment ID: {id}</p>
@@ -108,7 +108,7 @@ export default async function DiagnosticDetailsPage({
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Symptom */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            {/* <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                 🩺 Reported Symptoms
               </h2>
@@ -117,10 +117,10 @@ export default async function DiagnosticDetailsPage({
                   {diagnostic.symptom}
                 </p>
               </div>
-            </div>
+            </div> */}
 
             {/* AI Summary */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            {/* <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                 🤖 AI Assessment
               </h2>
@@ -132,10 +132,10 @@ export default async function DiagnosticDetailsPage({
                   }}
                 />
               </div>
-            </div>
+            </div> */}
 
             {/* Recommended Tests */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            {/* <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                 🔬 Available Diagnostic Tests
               </h2>
@@ -162,7 +162,7 @@ export default async function DiagnosticDetailsPage({
                   </div>
                 ))}
               </div>
-            </div>
+            </div> */}
           </div>
 
           {/* Sidebar */}
@@ -211,7 +211,7 @@ export default async function DiagnosticDetailsPage({
             </div>
 
             {/* Quick Actions */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            {/* <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
                 ⚡ Quick Actions
               </h2>
@@ -265,10 +265,10 @@ export default async function DiagnosticDetailsPage({
                   </div>
                 </button>
               </div>
-            </div>
+            </div> */}
 
             {/* Emergency Contact */}
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            {/* <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <h3 className="font-semibold text-red-800 mb-2">
                 🚨 Emergency Contact
               </h3>
@@ -279,7 +279,7 @@ export default async function DiagnosticDetailsPage({
               <button className="w-full bg-red-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-red-700 transition-colors">
                 Call Emergency: 911
               </button>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
