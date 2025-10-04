@@ -14,6 +14,14 @@ export default async function page() {
     user?.emailAddresses?.[0]?.emailAddress ||
     "Guest";
 
+  // Serialize user data for client component
+  const serializedUser = user
+    ? {
+        firstName: user.firstName,
+        fullName: user.fullName,
+      }
+    : null;
+
   return (
     <div className="min-h-screen bg-white flex">
       {/* Sidebar */}
@@ -21,19 +29,9 @@ export default async function page() {
 
       {/* Main */}
       <main className="w-4/5 flex flex-col">
-        {/* Header */}
-        <div className="p-4 border-b border-gray-200">
-          <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
-            Hello {user?.firstName ?? user?.fullName ?? displayName}
-          </h1>
-          <p className="mt-1 text-sm text-gray-400">
-            How can I help you today?
-          </p>
-        </div>
-
         {/* Chat Component */}
         <div className="flex-1 min-h-0">
-          <Chat />
+          <Chat user={serializedUser} displayName={displayName} />
         </div>
       </main>
     </div>
