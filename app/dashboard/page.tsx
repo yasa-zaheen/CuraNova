@@ -1,6 +1,8 @@
-import Image from "next/image";
+// Clerk
 import { currentUser } from "@clerk/nextjs/server";
-import { Compass, File, History, Library } from "lucide-react";
+
+// Components
+import DashboardSidebar from "@/components/DashboardSidebar";
 
 export default async function page() {
   const user = await currentUser();
@@ -26,72 +28,13 @@ export default async function page() {
   return (
     <div className="min-h-screen bg-white flex">
       {/* Sidebar */}
-      <aside className="w-72 bg-gray-50 border-r border-gray-100 flex flex-col justify-between">
-        <div>
-          <div className="px-4 py-4 flex items-center gap-3 border-gray-100">
-            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-400 to-indigo-400 flex items-center justify-center text-white font-bold">
-              CN
-            </div>
-            <div className="text-sm font-semibold">CuraNova</div>
-          </div>
-
-          <hr className="mx-4" />
-
-          <nav className="px-3 py-4 space-y-1 text-sm text-gray-700">
-            <div className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100">
-              <Compass className="w-4 h-4" />
-              Explore
-            </div>
-            <div className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100">
-              <Library className="w-4 h-4" />
-              Library
-            </div>
-            <div className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100">
-              <File className="w-4 h-4" />
-              Files
-            </div>
-            <div className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100">
-              <History className="w-4 h-4" />
-              History
-            </div>
-          </nav>
-
-          <hr className="mx-4" />
-
-          <div className="px-4 mt-4">
-            <div className="text-xs text-gray-500 mb-2">Recent</div>
-            <div className="space-y-2">
-              <div className="px-3 py-2 bg-white border border-gray-100 rounded-md text-sm">
-                Brainstorming small bussines...
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* User info at the bottom */}
-        <div className="px-4 py-4 border-t border-gray-100 flex items-center gap-3">
-          {user?.imageUrl ? (
-            <Image
-              src={user.imageUrl}
-              alt={displayName}
-              width={36}
-              height={36}
-              className="h-9 w-9 rounded-full object-cover"
-            />
-          ) : (
-            <div className="h-9 w-9 rounded-full bg-gray-200 flex items-center justify-center font-medium">
-              {initials}
-            </div>
-          )}
-          <div className="text-sm font-semibold">{displayName}</div>
-        </div>
-      </aside>
+      <DashboardSidebar user={user} displayName={displayName} />
 
       {/* Main */}
-      <main className="flex-1 p-4 flex flex-col">
+      <main className="w-4/5 p-4 flex flex-col">
         {/* Greeting */}
         <section className="flex-1 flex flex-col items-start justify-center">
-          <h1 className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
+          <h1 className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400 animate-shimmer bg-[length:200%_auto]">
             Hello {user?.firstName ?? user?.fullName ?? displayName}
           </h1>
           <p className="mt-3 text-2xl text-gray-400">
