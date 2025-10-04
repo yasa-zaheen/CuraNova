@@ -1,10 +1,27 @@
 "use client";
 
+// React
 import { useState } from "react";
 
+// Next
+import { useRouter } from "next/navigation";
+
+// Clerk
+import { useUser } from "@clerk/nextjs";
+
+// Components
+import MedicalInfoDialog from "./MedicalInfoDialog";
+
+// Type Definitions
 interface Message {
   role: "user" | "assistant";
   content: string;
+}
+
+interface WorkerResponse {
+  type: "test" | "doctor" | "none";
+  testName?: string;
+  reply: string;
 }
 
 interface ChatProps {
@@ -20,8 +37,91 @@ export default function Chat({ user, displayName }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showMedicalDialog, setShowMedicalDialog] = useState(false);
+  const [currentWorkerResponse, setCurrentWorkerResponse] =
+    useState<WorkerResponse | null>(null);
+  const [currentUserSymptom, setCurrentUserSymptom] = useState("");
+
+  // Hooks
+  const router = useRouter();
+  const { user: clerkUser } = useUser();
 
   // Functions
+  const handleTestResponse = async (
+    workerResponse: WorkerResponse,
+    userSymptom: string
+  ) => {
+    // Open the medical information dialog
+    setCurrentWorkerResponse(workerResponse);
+    setCurrentUserSymptom(userSymptom);
+    setShowMedicalDialog(true);
+  };
+
+  const handleMedicalDialogSubmit = async (
+    patientInfo: any,
+    selectedTests: string[]
+  ) => {
+    try {
+      if (!currentWorkerResponse) return;
+
+      const diagnosticsData = {
+        userId: clerkUser?.id || "anonymous",
+        symptom: currentUserSymptom,
+        aiSummary: currentWorkerResponse.reply,
+        testName: selectedTests.join(", "), // Join selected tests
+        hospital: "Tampa General Hospital",
+        scheduledDate: new Date(
+          Date.now() + 7 * 24 * 60 * 60 * 1000
+        ).toISOString(),
+        patientInfo: patientInfo,
+        selectedTests: selectedTests,
+      };
+
+      const response = await fetch("/api/diagnostics", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(diagnosticsData),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create diagnostic entry");
+      }
+
+      const diagnostic = await response.json();
+
+      // Close dialog and navigate
+      setShowMedicalDialog(false);
+      setCurrentWorkerResponse(null);
+      setCurrentUserSymptom("");
+
+      // Navigate to the diagnostic details page
+      router.push(`/diagnostics/${diagnostic.id}`);
+    } catch (error) {
+      console.error("Error creating diagnostics entry:", error);
+
+      // Add error message to chat
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content:
+            "Sorry, I encountered an error while scheduling your test. Please try again or contact support.",
+        },
+      ]);
+
+      // Close dialog
+      setShowMedicalDialog(false);
+    }
+  };
+
+  const handleMedicalDialogClose = () => {
+    setShowMedicalDialog(false);
+    setCurrentWorkerResponse(null);
+    setCurrentUserSymptom("");
+  };
+
   const handleSendMessage = async () => {
     if (inputValue.trim() && !isLoading) {
       const userMessage: Message = {
@@ -51,15 +151,34 @@ export default function Chat({ user, displayName }: ChatProps) {
           throw new Error("Failed to get response");
         }
 
-        const data = await response.json();
+        const workerResponse: WorkerResponse = await response.json();
 
-        // Add assistant response
+        // Extract only the reply content for display
+        const replyContent =
+          workerResponse.reply || "I'm sorry, I couldn't process your request.";
+
+        // Add assistant response to messages
         const assistantMessage: Message = {
           role: "assistant",
-          content: data.reply || "I'm sorry, I couldn't process your request.",
+          content: replyContent,
         };
 
         setMessages((prev) => [...prev, assistantMessage]);
+
+        // Handle different response types
+        if (workerResponse.type === "test") {
+          await handleTestResponse(workerResponse, currentInput);
+        } else if (workerResponse.type === "doctor") {
+          // Navigate to appointments page
+          router.push("/appointments");
+        }
+
+        // Log the response type and testName for debugging
+        console.log("Worker Response:", {
+          type: workerResponse.type,
+          testName: workerResponse.testName,
+          hasReply: !!workerResponse.reply,
+        });
       } catch (error) {
         console.error("Error sending message:", error);
         // Add error message
@@ -166,6 +285,17 @@ export default function Chat({ user, displayName }: ChatProps) {
           </div>
         </div>
       </div>
+
+      {/* Medical Information Dialog */}
+      {showMedicalDialog && currentWorkerResponse && (
+        <MedicalInfoDialog
+          isOpen={showMedicalDialog}
+          onClose={handleMedicalDialogClose}
+          onSubmit={handleMedicalDialogSubmit}
+          workerResponse={currentWorkerResponse}
+          userSymptom={currentUserSymptom}
+        />
+      )}
     </div>
   );
 }
