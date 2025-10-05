@@ -3,6 +3,9 @@
 // React
 import { useState, useEffect } from "react";
 
+// Clerk
+import { useUser } from "@clerk/nextjs";
+
 // Contexts
 import { useMedicalInfo } from "@/context/MedicalInfoContext";
 
@@ -127,6 +130,7 @@ export default function MedicalInfoDialog({
 }: MedicalInfoDialogProps) {
   // Use medical context for patient information
   const { medicalInfo, setMedicalInfo, updateField } = useMedicalInfo();
+  const { user } = useUser();
 
   // Initialize with AI recommended tests
   const [selectedTests, setSelectedTests] = useState<string[]>(() => {
@@ -137,6 +141,10 @@ export default function MedicalInfoDialog({
   // Stores the preferred appointment date as ISO string (YYYY-MM-DD)
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
+  // Track if we've loaded user data to avoid overwriting user edits
+  const [userDataLoaded, setUserDataLoaded] = useState(false);
+  const [loadingUserData, setLoadingUserData] = useState(false);
+
   // Initialize recommended tests when dialog opens or worker response changes
   useEffect(() => {
     if (isOpen && workerResponse) {
@@ -144,6 +152,85 @@ export default function MedicalInfoDialog({
       setSelectedTests(aiRecommendedIds);
     }
   }, [isOpen, workerResponse]);
+
+  // Fetch and populate user data when dialog opens
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (!isOpen || !user?.id || userDataLoaded) return;
+
+      try {
+        setLoadingUserData(true);
+        console.log("🔄 Fetching user data from Supabase...");
+        const response = await fetch(`/api/user-data?clerkUserId=${user.id}`);
+        const data = await response.json();
+
+        if (response.ok && data.userExists && data.userData) {
+          console.log("✅ Populating form with user data:", data.userData);
+
+          // Only populate if fields are empty to avoid overwriting user edits
+          const currentInfo = medicalInfo;
+          const updates: Partial<MedicalInfo> = {};
+
+          // Populate empty fields with user data
+          if (!currentInfo.firstName && data.userData.firstName) {
+            updates.firstName = data.userData.firstName;
+          }
+          if (!currentInfo.lastName && data.userData.lastName) {
+            updates.lastName = data.userData.lastName;
+          }
+          if (!currentInfo.email && data.userData.email) {
+            updates.email = data.userData.email;
+          }
+          if (!currentInfo.phone && data.userData.phone) {
+            updates.phone = data.userData.phone;
+          }
+          if (!currentInfo.street && data.userData.street) {
+            updates.street = data.userData.street;
+          }
+          if (!currentInfo.city && data.userData.city) {
+            updates.city = data.userData.city;
+          }
+          if (!currentInfo.state && data.userData.state) {
+            updates.state = data.userData.state;
+          }
+          if (!currentInfo.zip && data.userData.zip) {
+            updates.zip = data.userData.zip;
+          }
+          if (
+            !currentInfo.insuranceProvider &&
+            data.userData.insuranceProvider
+          ) {
+            updates.insuranceProvider = data.userData.insuranceProvider;
+          }
+          if (!currentInfo.insuranceId && data.userData.insuranceId) {
+            updates.insuranceId = data.userData.insuranceId;
+          }
+          if (!currentInfo.groupNumber && data.userData.groupNumber) {
+            updates.groupNumber = data.userData.groupNumber;
+          }
+
+          // Update the medical info with the fetched data
+          if (Object.keys(updates).length > 0) {
+            Object.entries(updates).forEach(([field, value]) => {
+              updateField(field as keyof MedicalInfo, value as string);
+            });
+          }
+
+          setUserDataLoaded(true);
+        } else {
+          console.log("📝 No user data found or user doesn't exist");
+          setUserDataLoaded(true);
+        }
+      } catch (error) {
+        console.error("❌ Error fetching user data:", error);
+        setUserDataLoaded(true);
+      } finally {
+        setLoadingUserData(false);
+      }
+    };
+
+    fetchUserData();
+  }, [isOpen, user?.id, userDataLoaded, medicalInfo, setMedicalInfo]);
 
   const handleInputChange = (field: keyof MedicalInfo, value: string) => {
     updateField(field, value);

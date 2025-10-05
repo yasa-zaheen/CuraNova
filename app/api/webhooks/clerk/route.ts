@@ -93,6 +93,16 @@ export async function POST(request: Request) {
           last_name,
           profile_image,
           created_at: created_at_iso,
+          // Initialize onboarding fields as null
+          phone_number: null,
+          street_address: null,
+          city: null,
+          state: null,
+          zip_code: null,
+          insurance_provider: null,
+          insurance_id: null,
+          group_number: null,
+          onboarding_completed: false,
         },
         { onConflict: "clerk_user_id" }
       );
