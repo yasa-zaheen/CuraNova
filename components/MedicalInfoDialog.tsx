@@ -128,15 +128,10 @@ export default function MedicalInfoDialog({
   // Use medical context for patient information
   const { medicalInfo, setMedicalInfo, updateField } = useMedicalInfo();
 
-  console.log(workerResponse);
-
   // Initialize with AI recommended tests
   const [selectedTests, setSelectedTests] = useState<string[]>(() => {
     return getAIRecommendedTestIds(workerResponse?.testId);
   });
-
-  console.log("Selected tests:", selectedTests);
-  console.log("AI recommended test ID:", workerResponse?.testId);
 
   // Single date selection for appointment scheduling
   // Stores the preferred appointment date as ISO string (YYYY-MM-DD)

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 
 // Clerk
-import { useUser } from "@clerk/nextjs";
+import { UserButton, useUser } from "@clerk/nextjs";
 
 // Lucide
 import { Compass, File, History, Library } from "lucide-react";
@@ -150,13 +150,7 @@ function DashboardSidebar({
       {/* User info at the bottom */}
       <div className="px-4 py-4 border-t border-gray-100 flex items-center gap-3">
         {clerkUser?.imageUrl ? (
-          <Image
-            src={clerkUser.imageUrl}
-            alt={displayName}
-            width={36}
-            height={36}
-            className="h-9 w-9 rounded-full object-cover"
-          />
+          <UserButton />
         ) : (
           <div className="h-9 w-9 rounded-full bg-gradient-to-r from-purple-400 to-pink-400 flex items-center justify-center text-white text-sm font-semibold">
             {displayName.charAt(0).toUpperCase()}
