@@ -33,6 +33,7 @@ export default function AppointmentsPage() {
     DiagnosticWithAppointments[]
   >([]);
   const [loading, setLoading] = useState(true);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchAppointments = async () => {
@@ -87,6 +88,90 @@ export default function AppointmentsPage() {
     } catch (error) {
       console.error("Error:", error);
       alert("An error occurred. Please try again.");
+    }
+  };
+
+  const handleConfirmAppointment = async (appointmentId: string) => {
+    if (!user?.emailAddresses[0]?.emailAddress) {
+      alert(
+        "Email address not found. Please ensure your account has a valid email."
+      );
+      return;
+    }
+
+    setConfirmingId(appointmentId);
+
+    try {
+      const response = await fetch("/api/appointments", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          appointmentId,
+          status: "confirmed",
+          userEmail: user.emailAddresses[0].emailAddress,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to confirm appointment");
+      }
+
+      // Update local state
+      setAppointments((prev) =>
+        prev.map((apt) =>
+          apt.id === appointmentId ? { ...apt, status: "confirmed" } : apt
+        )
+      );
+
+      // Show success message with better UX
+      const successMessage =
+        "✅ Appointment confirmed! A confirmation email has been sent to your email address.";
+
+      // Create a temporary toast-like notification
+      const notification = document.createElement("div");
+      notification.style.cssText = `
+        position: fixed; top: 20px; right: 20px; z-index: 1000;
+        background: #10b981; color: white; padding: 16px 24px;
+        border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 14px; font-weight: 500; max-width: 400px;
+      `;
+      notification.textContent = successMessage;
+      document.body.appendChild(notification);
+
+      // Remove notification after 5 seconds
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.parentNode.removeChild(notification);
+        }
+      }, 5000);
+    } catch (error) {
+      console.error("Error confirming appointment:", error);
+
+      // Show error message with better UX
+      const errorMessage =
+        "❌ Failed to confirm appointment. Please try again.";
+
+      const notification = document.createElement("div");
+      notification.style.cssText = `
+        position: fixed; top: 20px; right: 20px; z-index: 1000;
+        background: #ef4444; color: white; padding: 16px 24px;
+        border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 14px; font-weight: 500; max-width: 400px;
+      `;
+      notification.textContent = errorMessage;
+      document.body.appendChild(notification);
+
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.parentNode.removeChild(notification);
+        }
+      }, 5000);
+    } finally {
+      setConfirmingId(null);
     }
   };
 
@@ -228,14 +313,14 @@ export default function AppointmentsPage() {
                         <Button
                           size="sm"
                           className="bg-green-600 hover:bg-green-700"
-                          onClick={() => {
-                            // In a real app, this might open a confirmation modal
-                            alert(
-                              "Appointment confirmation feature coming soon!"
-                            );
-                          }}
+                          onClick={() =>
+                            handleConfirmAppointment(appointment.id)
+                          }
+                          disabled={confirmingId === appointment.id}
                         >
-                          Confirm
+                          {confirmingId === appointment.id
+                            ? "Confirming..."
+                            : "Confirm"}
                         </Button>
                       )}
                     </div>

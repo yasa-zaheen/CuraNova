@@ -85,3 +85,81 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  console.log("📝 Appointment update API called");
+
+  try {
+    const { appointmentId, status, userEmail } = await request.json();
+
+    if (!appointmentId || !status) {
+      return NextResponse.json(
+        { error: "Missing required fields: appointmentId, status" },
+        { status: 400 }
+      );
+    }
+
+    const supabase = createSupabaseServerClient();
+
+    // Update appointment status
+    const { data: appointment, error: updateError } = await supabase
+      .from("appointments")
+      .update({ status })
+      .eq("id", appointmentId)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error("❌ Error updating appointment:", updateError);
+      return NextResponse.json(
+        { error: "Failed to update appointment", details: updateError.message },
+        { status: 500 }
+      );
+    }
+
+    console.log("✅ Appointment updated:", appointment);
+
+    // If confirming appointment and email provided, send confirmation email
+    if (status === "confirmed" && userEmail) {
+      try {
+        const emailResponse = await fetch(
+          `${request.nextUrl.origin}/api/send-appointment-email`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              appointmentId,
+              userEmail,
+            }),
+          }
+        );
+
+        if (!emailResponse.ok) {
+          console.error("❌ Failed to send confirmation email");
+        } else {
+          console.log("✅ Confirmation email sent successfully");
+        }
+      } catch (emailError) {
+        console.error("❌ Error sending confirmation email:", emailError);
+        // Don't fail the appointment update if email fails
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Appointment updated successfully",
+      appointment,
+    });
+  } catch (error) {
+    console.error("❌ Error updating appointment:", error);
+    return NextResponse.json(
+      {
+        error: "Failed to update appointment",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 }
+    );
+  }
+}
