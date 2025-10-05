@@ -1,5 +1,17 @@
-import { notFound } from "next/navigation";
-import { createSupabaseServerClient } from "@/utils/supabase/server";
+"use client";
+import { useState, useEffect } from "react";
+import { useParams, notFound } from "next/navigation";
+import { createClient } from "@supabase/supabase-js";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface DiagnosticRecord {
   id: string;
@@ -23,59 +35,318 @@ interface TestRecord {
   test_id: string;
 }
 
-async function getDiagnostic(id: string): Promise<DiagnosticRecord | null> {
-  try {
-    const supabase = createSupabaseServerClient();
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+);
 
-    const { data, error } = await supabase
-      .from("diagnostics")
-      .select("*")
-      .eq("id", id)
-      .single();
-
-    if (error) {
-      console.error("Supabase error:", error);
-      return null;
-    }
-
-    return data;
-  } catch (error) {
-    console.error("Error fetching diagnostic:", error);
-    return null;
-  }
+interface DiabetesFormData {
+  pregnancies: number;
+  glucose: number;
+  blood_pressure: number;
+  skin_thickness: number;
+  insulin: number;
+  bmi: number;
+  diabetes_pedigree: number;
+  age: number;
 }
 
-async function getTestsForDiagnostic(
-  diagnosticId: string
-): Promise<TestRecord[]> {
-  try {
-    const supabase = createSupabaseServerClient();
-
-    const { data, error } = await supabase
-      .from("tests")
-      .select("id, diagnostic_id, test_name, status, result_file, test_id")
-      .eq("diagnostic_id", diagnosticId);
-
-    if (error) {
-      console.error("Supabase error fetching tests:", error);
-      return [];
-    }
-
-    return data || [];
-  } catch (error) {
-    console.error("Error fetching tests:", error);
-    return [];
-  }
+interface MLResponse {
+  prediction: number;
+  probability: number;
+  message?: string;
 }
 
-export default async function DiagnosticDetailsPage({
-  params,
+function DiabetesTestModal({
+  test,
+  onClose,
 }: {
-  params: Promise<{ id: string }>;
+  test: TestRecord;
+  onClose: () => void;
 }) {
-  const { id } = await params;
-  const diagnostic = await getDiagnostic(id);
-  const tests = await getTestsForDiagnostic(id);
+  const [formData, setFormData] = useState<DiabetesFormData>({
+    pregnancies: 0,
+    glucose: 0,
+    blood_pressure: 0,
+    skin_thickness: 0,
+    insulin: 0,
+    bmi: 0,
+    diabetes_pedigree: 0,
+    age: 0,
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [result, setResult] = useState<MLResponse | null>(null);
+
+  const handleInputChange = (field: keyof DiabetesFormData, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: parseFloat(value) || 0,
+    }));
+  };
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    try {
+      const response = await fetch("/api/predict-diabetes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          testId: test.id,
+          ...formData,
+        }),
+      });
+
+      const data = await response.json();
+      setResult(data);
+    } catch (error) {
+      console.error("Error submitting diabetes test:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogHeader>
+        <DialogTitle>Diabetes Test Results - {test.test_name}</DialogTitle>
+      </DialogHeader>
+
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="pregnancies">Pregnancies</Label>
+            <Input
+              id="pregnancies"
+              type="number"
+              min="0"
+              value={formData.pregnancies}
+              onChange={(e) => handleInputChange("pregnancies", e.target.value)}
+            />
+          </div>
+          <div>
+            <Label htmlFor="glucose">Glucose (mg/dL)</Label>
+            <Input
+              id="glucose"
+              type="number"
+              min="0"
+              value={formData.glucose}
+              onChange={(e) => handleInputChange("glucose", e.target.value)}
+            />
+          </div>
+          <div>
+            <Label htmlFor="blood_pressure">Blood Pressure (mmHg)</Label>
+            <Input
+              id="blood_pressure"
+              type="number"
+              min="0"
+              value={formData.blood_pressure}
+              onChange={(e) =>
+                handleInputChange("blood_pressure", e.target.value)
+              }
+            />
+          </div>
+          <div>
+            <Label htmlFor="skin_thickness">Skin Thickness (mm)</Label>
+            <Input
+              id="skin_thickness"
+              type="number"
+              min="0"
+              value={formData.skin_thickness}
+              onChange={(e) =>
+                handleInputChange("skin_thickness", e.target.value)
+              }
+            />
+          </div>
+          <div>
+            <Label htmlFor="insulin">Insulin (μU/mL)</Label>
+            <Input
+              id="insulin"
+              type="number"
+              min="0"
+              value={formData.insulin}
+              onChange={(e) => handleInputChange("insulin", e.target.value)}
+            />
+          </div>
+          <div>
+            <Label htmlFor="bmi">BMI</Label>
+            <Input
+              id="bmi"
+              type="number"
+              min="0"
+              step="0.1"
+              value={formData.bmi}
+              onChange={(e) => handleInputChange("bmi", e.target.value)}
+            />
+          </div>
+          <div>
+            <Label htmlFor="diabetes_pedigree">
+              Diabetes Pedigree Function
+            </Label>
+            <Input
+              id="diabetes_pedigree"
+              type="number"
+              min="0"
+              step="0.01"
+              value={formData.diabetes_pedigree}
+              onChange={(e) =>
+                handleInputChange("diabetes_pedigree", e.target.value)
+              }
+            />
+          </div>
+          <div>
+            <Label htmlFor="age">Age (years)</Label>
+            <Input
+              id="age"
+              type="number"
+              min="0"
+              value={formData.age}
+              onChange={(e) => handleInputChange("age", e.target.value)}
+            />
+          </div>
+        </div>
+
+        {result && (
+          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h3 className="font-semibold text-blue-900 mb-2">
+              ML Model Results
+            </h3>
+            <div className="space-y-2 text-sm">
+              <p>
+                <strong>Prediction:</strong>{" "}
+                {result.prediction === 1
+                  ? "Positive for Diabetes"
+                  : "Negative for Diabetes"}
+              </p>
+              <p>
+                <strong>Probability:</strong>{" "}
+                {(result.probability * 100).toFixed(2)}%
+              </p>
+              {result.message && (
+                <p>
+                  <strong>Note:</strong> {result.message}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-2 pt-4">
+          <Button variant="outline" onClick={onClose} className="flex-1">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            className="flex-1 bg-gradient-to-r from-purple-400 to-pink-400 hover:from-purple-500 hover:to-pink-500"
+          >
+            {isSubmitting ? "Processing..." : "Run ML Prediction"}
+          </Button>
+        </div>
+      </div>
+    </DialogContent>
+  );
+}
+
+function TestResultModal({
+  test,
+  onClose,
+}: {
+  test: TestRecord;
+  onClose: () => void;
+}) {
+  if (test.test_id === "fasting_glucose_blood_test") {
+    return <DiabetesTestModal test={test} onClose={onClose} />;
+  }
+
+  // Default modal for other tests
+  return (
+    <DialogContent className="sm:max-w-md">
+      <DialogHeader>
+        <DialogTitle>Test Results - {test.test_name}</DialogTitle>
+      </DialogHeader>
+
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="test-results">Test Results</Label>
+          <Input
+            id="test-results"
+            placeholder="Enter test results..."
+            className="min-h-[100px]"
+          />
+        </div>
+
+        <div className="flex gap-2 pt-4">
+          <Button variant="outline" onClick={onClose} className="flex-1">
+            Cancel
+          </Button>
+          <Button className="flex-1 bg-gradient-to-r from-purple-400 to-pink-400 hover:from-purple-500 hover:to-pink-500">
+            Save Results
+          </Button>
+        </div>
+      </div>
+    </DialogContent>
+  );
+}
+
+export default function DiagnosticDetailsPage() {
+  const params = useParams();
+  const id = params?.id as string;
+  const [diagnostic, setDiagnostic] = useState<DiagnosticRecord | null>(null);
+  const [tests, setTests] = useState<TestRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedTest, setSelectedTest] = useState<TestRecord | null>(null);
+
+  useEffect(() => {
+    if (!id) return;
+
+    const fetchData = async () => {
+      try {
+        // Fetch diagnostic
+        const { data: diagnosticData, error: diagnosticError } = await supabase
+          .from("diagnostics")
+          .select("*")
+          .eq("id", id)
+          .single();
+
+        if (diagnosticError) {
+          console.error("Error fetching diagnostic:", diagnosticError);
+          return;
+        }
+
+        // Fetch tests
+        const { data: testsData, error: testsError } = await supabase
+          .from("tests")
+          .select("id, diagnostic_id, test_name, status, result_file, test_id")
+          .eq("diagnostic_id", id);
+
+        if (testsError) {
+          console.error("Error fetching tests:", testsError);
+        }
+
+        setDiagnostic(diagnosticData);
+        setTests(testsData || []);
+      } catch (error) {
+        console.error("Error:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading diagnostic details...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!diagnostic) {
     notFound();
@@ -217,9 +488,13 @@ export default async function DiagnosticDetailsPage({
                           </button>
                         )}
                         {test.status === "pending" && (
-                          <button className="flex-1 bg-gradient-to-r from-purple-400 to-pink-400 text-white py-2 px-3 rounded-lg text-sm font-medium hover:from-purple-500 hover:to-pink-500 transition-colors">
-                            Upload Result
-                          </button>
+                          <Button
+                            size="sm"
+                            className="flex-1 bg-gradient-to-r from-purple-400 to-pink-400 text-white hover:from-purple-500 hover:to-pink-500"
+                            onClick={() => setSelectedTest(test)}
+                          >
+                            Enter Results
+                          </Button>
                         )}
                         {test.status === "in_progress" && (
                           <button className="flex-1 bg-gradient-to-r from-blue-400 to-blue-500 text-white py-2 px-3 rounded-lg text-sm font-medium hover:from-blue-500 hover:to-blue-600 transition-colors">
@@ -395,6 +670,19 @@ export default async function DiagnosticDetailsPage({
           </div>
         </div>
       </div>
+
+      {/* Test Result Modal */}
+      {selectedTest && (
+        <Dialog
+          open={!!selectedTest}
+          onOpenChange={(open) => !open && setSelectedTest(null)}
+        >
+          <TestResultModal
+            test={selectedTest}
+            onClose={() => setSelectedTest(null)}
+          />
+        </Dialog>
+      )}
     </div>
   );
 }
