@@ -35,7 +35,25 @@ async function getConfirmedAppointments(): Promise<ConfirmedAppointment[]> {
   try {
     const supabase = createSupabaseServerClient();
 
-    // Get all confirmed appointments with user and diagnostic details
+    // First check: Get all appointments without joins to see total count
+    const { data: simpleAppointments, error: simpleError } = await supabase
+      .from("appointments")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    console.log("📋 Simple appointments query:", {
+      total: simpleAppointments?.length || 0,
+      appointments:
+        simpleAppointments?.map((apt) => ({
+          id: apt.id,
+          status: apt.status,
+          user_id: apt.user_id,
+          diagnostic_id: apt.diagnostic_id,
+          created_at: apt.created_at,
+        })) || [],
+    });
+
+    // Get all appointments with user and diagnostic details
     const { data, error } = await supabase
       .from("appointments")
       .select(
@@ -62,7 +80,8 @@ async function getConfirmedAppointments(): Promise<ConfirmedAppointment[]> {
         )
       `
       )
-      .eq("status", "confirmed")
+      // Temporarily showing ALL appointments to debug
+      // .eq("status", "confirmed")
       .order("appointment_date", { ascending: true })
       .order("appointment_time", { ascending: true });
 
@@ -70,6 +89,21 @@ async function getConfirmedAppointments(): Promise<ConfirmedAppointment[]> {
       console.error("Supabase error fetching confirmed appointments:", error);
       return [];
     }
+
+    console.log("🔍 Doctor Dashboard: Fetched appointments with joins:", {
+      total: data?.length || 0,
+      appointments: data?.map((apt) => ({
+        id: apt.id,
+        status: apt.status,
+        user_id: apt.user_id,
+        diagnostic_id: apt.diagnostic_id,
+        user_name: apt.user
+          ? `${apt.user.first_name} ${apt.user.last_name}`
+          : "No user data",
+        has_user_data: !!apt.user,
+        has_diagnostic_data: !!apt.diagnostic,
+      })),
+    });
 
     return data || [];
   } catch (error) {
@@ -96,6 +130,17 @@ async function getAppointmentStats() {
         todayAppointments: 0,
       };
     }
+
+    console.log("📊 Doctor Dashboard: All appointments by status:", {
+      total: allAppointments.length,
+      statusBreakdown: allAppointments.reduce(
+        (acc, apt) => {
+          acc[apt.status] = (acc[apt.status] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>
+      ),
+    });
 
     const today = new Date().toISOString().split("T")[0];
     const stats = {
