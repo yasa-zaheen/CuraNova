@@ -53,6 +53,8 @@ async function getConfirmedAppointments(): Promise<ConfirmedAppointment[]> {
         })) || [],
     });
 
+    // Dummy Push
+
     // Get all appointments with user and diagnostic details
     const { data, error } = await supabase
       .from("appointments")
