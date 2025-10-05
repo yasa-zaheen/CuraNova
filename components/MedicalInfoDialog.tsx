@@ -143,7 +143,6 @@ export default function MedicalInfoDialog({
 
   // Track if we've loaded user data to avoid overwriting user edits
   const [userDataLoaded, setUserDataLoaded] = useState(false);
-  const [loadingUserData, setLoadingUserData] = useState(false);
 
   // Initialize recommended tests when dialog opens or worker response changes
   useEffect(() => {
@@ -159,7 +158,6 @@ export default function MedicalInfoDialog({
       if (!isOpen || !user?.id || userDataLoaded) return;
 
       try {
-        setLoadingUserData(true);
         console.log("🔄 Fetching user data from Supabase...");
         const response = await fetch(`/api/user-data?clerkUserId=${user.id}`);
         const data = await response.json();
@@ -224,13 +222,11 @@ export default function MedicalInfoDialog({
       } catch (error) {
         console.error("❌ Error fetching user data:", error);
         setUserDataLoaded(true);
-      } finally {
-        setLoadingUserData(false);
       }
     };
 
     fetchUserData();
-  }, [isOpen, user?.id, userDataLoaded, medicalInfo, setMedicalInfo]);
+  }, [isOpen, user?.id, userDataLoaded]); // Removed medicalInfo and setMedicalInfo to avoid unnecessary re-renders
 
   const handleInputChange = (field: keyof MedicalInfo, value: string) => {
     updateField(field, value);
@@ -477,8 +473,8 @@ export default function MedicalInfoDialog({
               Recommended Medical Tests
             </h3>
             <p className="text-sm text-gray-600 mb-4">
-              Based on your symptoms and AI assessment, we've pre-selected some
-              recommended tests. You can modify the selection below:
+              Based on your symptoms and AI assessment, we&apos;ve pre-selected
+              some recommended tests. You can modify the selection below:
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {MEDICAL_TESTS.map((test) => {
@@ -496,8 +492,8 @@ export default function MedicalInfoDialog({
                       isSelected
                         ? "border-purple-300 bg-purple-50"
                         : isDisabled
-                        ? "border-gray-100 bg-gray-50 opacity-60"
-                        : "border-gray-200 hover:border-gray-300"
+                          ? "border-gray-100 bg-gray-50 opacity-60"
+                          : "border-gray-200 hover:border-gray-300"
                     }`}
                   >
                     <div className="flex items-start space-x-3">
@@ -570,8 +566,8 @@ export default function MedicalInfoDialog({
               Select Preferred Appointment Date
             </h3>
             <p className="text-sm text-gray-600 mb-4">
-              Choose your preferred date for the medical tests. We'll confirm
-              availability and send you appointment details.
+              Choose your preferred date for the medical tests. We&apos;ll
+              confirm availability and send you appointment details.
             </p>
             <AvailabilityCalendar
               initial={null} // Start with no pre-selected date

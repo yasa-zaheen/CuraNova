@@ -93,7 +93,7 @@ export default function OnboardingPage() {
             Complete Your Profile
           </h1>
           <p className="text-gray-600 mt-2">
-            Let's get your information set up to provide you with the best
+            Let&apos;s get your information set up to provide you with the best
             healthcare experience
           </p>
         </div>
