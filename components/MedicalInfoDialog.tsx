@@ -1,21 +1,34 @@
 "use client";
 
+// React
 import { useState, useEffect } from "react";
+
+// Contexts
+import { useMedicalInfo } from "@/context/MedicalInfoContext";
+
+// ShadCn
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-// Import availability calendar for single-date selection
+
+// Components
 import AvailabilityCalendar from "@/components/availability/AvailabilityCalendar";
-// Import medical context and types
-import { useMedicalInfo } from "@/context/MedicalInfoContext";
-import { MedicalInfo, TestSelection, AppointmentInput, DiagnosticPayload } from "@/types/medical";
+
+// Types
+import {
+  MedicalInfo,
+  TestSelection,
+  AppointmentInput,
+  DiagnosticPayload,
+} from "@/types/medical";
 
 interface MedicalTest {
   id: string;
@@ -33,6 +46,7 @@ interface MedicalInfoDialogProps {
   workerResponse: {
     type: string;
     testName?: string;
+    testId?: string; // AI recommended test ID from Cloudflare worker
     reply: string;
   };
   userSymptom: string;
@@ -41,160 +55,67 @@ interface MedicalInfoDialogProps {
 // Sample medical tests JSON object
 const MEDICAL_TESTS: MedicalTest[] = [
   {
-    id: "blood_test",
-    name: "Complete Blood Count (CBC)",
-    description: "Checks for blood disorders, infections, and overall health",
-    price: "$45",
-    duration: "1-2 days",
+    id: "fasting_glucose_blood_test",
+    name: "Fasting Glucose Blood Test",
+    description:
+      "Measures blood sugar levels after fasting to screen for diabetes or prediabetes.",
+    price: "$25",
+    duration: "Same day",
     category: "blood",
   },
   {
-    id: "metabolic_panel",
-    name: "Basic Metabolic Panel",
-    description: "Tests glucose, electrolytes, and kidney function",
+    id: "cardiovascular_risk_panel",
+    name: "Cardiovascular Risk Panel",
+    description:
+      "Evaluates cholesterol, blood pressure, and heart-related biomarkers to assess risk of heart disease.",
+    price: "$100",
+    duration: "1–2 days",
+    category: "cardiology",
+  },
+  {
+    id: "kidney_function_test",
+    name: "Kidney Function Test",
+    description:
+      "Analyzes blood urea nitrogen and creatinine levels to detect kidney dysfunction or disease.",
+    price: "$45",
+    duration: "1 day",
+    category: "blood",
+  },
+  {
+    id: "liver_enzyme_panel",
+    name: "Liver Enzyme Panel",
+    description:
+      "Checks enzyme levels (ALT, AST, ALP, bilirubin) to evaluate liver function or potential liver disease.",
     price: "$55",
     duration: "1 day",
     category: "blood",
   },
   {
-    id: "lipid_profile",
-    name: "Lipid Profile",
-    description: "Measures cholesterol and triglyceride levels",
-    price: "$40",
-    duration: "1 day",
-    category: "blood",
-  },
-  {
-    id: "thyroid_test",
-    name: "Thyroid Function Test (TSH, T3, T4)",
-    description: "Evaluates thyroid gland function",
-    price: "$75",
-    duration: "2-3 days",
-    category: "hormone",
-  },
-  {
-    id: "vitamin_d",
-    name: "Vitamin D Test",
-    description: "Measures vitamin D levels in blood",
-    price: "$50",
-    duration: "1-2 days",
-    category: "vitamin",
-  },
-  {
-    id: "hba1c",
-    name: "HbA1c (Diabetes Test)",
-    description: "Tests average blood sugar over 2-3 months",
-    price: "$35",
-    duration: "1 day",
-    category: "diabetes",
-  },
-  {
-    id: "ultrasound",
-    name: "Abdominal Ultrasound",
-    description: "Imaging of abdominal organs",
-    price: "$150",
-    duration: "30 minutes",
-    category: "imaging",
-  },
-  {
-    id: "chest_xray",
-    name: "Chest X-Ray",
-    description: "Imaging of chest and lungs",
-    price: "$75",
-    duration: "15 minutes",
-    category: "imaging",
-  },
-  {
-    id: "ecg",
-    name: "Electrocardiogram (ECG/EKG)",
-    description: "Tests heart electrical activity",
-    price: "$85",
-    duration: "15 minutes",
-    category: "cardiac",
-  },
-  {
-    id: "urinalysis",
-    name: "Urinalysis",
-    description: "Tests urine for various conditions",
-    price: "$25",
-    duration: "1 day",
-    category: "urine",
+    id: "parkinsons_screening",
+    name: "Parkinson’s Screening Test",
+    description:
+      "Analyzes neurological and voice metrics (jitter, shimmer, pitch) for early signs of Parkinson’s disease.",
+    price: "$120",
+    duration: "2–3 days",
+    category: "neurology",
   },
 ];
 
-// Function to match AI response with tests
-const getRecommendedTests = (testName?: string, symptom?: string): string[] => {
-  if (!testName && !symptom) return [];
+// Function to get AI recommended test ID
+const getAIRecommendedTestIds = (testId?: string): string[] => {
+  if (!testId) return [];
 
-  const recommended: string[] = [];
-  const searchText = `${testName || ""} ${symptom || ""}`.toLowerCase();
+  return [testId]; // Return array with single test ID
+};
 
-  // Simple keyword matching - you can make this more sophisticated
-  if (
-    searchText.includes("blood") ||
-    searchText.includes("anemia") ||
-    searchText.includes("infection")
-  ) {
-    recommended.push("blood_test");
-  }
-  if (
-    searchText.includes("diabetes") ||
-    searchText.includes("sugar") ||
-    searchText.includes("glucose")
-  ) {
-    recommended.push("hba1c", "metabolic_panel");
-  }
-  if (
-    searchText.includes("thyroid") ||
-    searchText.includes("hormone") ||
-    searchText.includes("fatigue")
-  ) {
-    recommended.push("thyroid_test");
-  }
-  if (
-    searchText.includes("cholesterol") ||
-    searchText.includes("lipid") ||
-    searchText.includes("heart")
-  ) {
-    recommended.push("lipid_profile");
-  }
-  if (
-    searchText.includes("ultrasound") ||
-    searchText.includes("abdominal") ||
-    searchText.includes("stomach")
-  ) {
-    recommended.push("ultrasound");
-  }
-  if (
-    searchText.includes("chest") ||
-    searchText.includes("cough") ||
-    searchText.includes("breathing")
-  ) {
-    recommended.push("chest_xray");
-  }
-  if (
-    searchText.includes("heart") ||
-    searchText.includes("cardiac") ||
-    searchText.includes("ecg")
-  ) {
-    recommended.push("ecg");
-  }
-  if (
-    searchText.includes("vitamin") ||
-    searchText.includes("deficiency") ||
-    searchText.includes("bone")
-  ) {
-    recommended.push("vitamin_d");
-  }
-  if (
-    searchText.includes("urine") ||
-    searchText.includes("kidney") ||
-    searchText.includes("uti")
-  ) {
-    recommended.push("urinalysis");
-  }
+// Function to check if a test is recommended by AI
+const isTestRecommended = (
+  testId: string,
+  aiRecommendedTestId?: string
+): boolean => {
+  if (!aiRecommendedTestId) return true; // If no AI recommendation, allow all
 
-  return recommended;
+  return aiRecommendedTestId === testId;
 };
 
 export default function MedicalInfoDialog({
@@ -207,9 +128,15 @@ export default function MedicalInfoDialog({
   // Use medical context for patient information
   const { medicalInfo, setMedicalInfo, updateField } = useMedicalInfo();
 
+  console.log(workerResponse);
+
+  // Initialize with AI recommended tests
   const [selectedTests, setSelectedTests] = useState<string[]>(() => {
-    return getRecommendedTests(workerResponse?.testName, userSymptom);
+    return getAIRecommendedTestIds(workerResponse?.testId);
   });
+
+  console.log("Selected tests:", selectedTests);
+  console.log("AI recommended test ID:", workerResponse?.testId);
 
   // Single date selection for appointment scheduling
   // Stores the preferred appointment date as ISO string (YYYY-MM-DD)
@@ -218,29 +145,39 @@ export default function MedicalInfoDialog({
   // Initialize recommended tests when dialog opens or worker response changes
   useEffect(() => {
     if (isOpen && workerResponse) {
-      const recommended = getRecommendedTests(workerResponse?.testName, userSymptom);
-      setSelectedTests(recommended);
+      const aiRecommendedIds = getAIRecommendedTestIds(workerResponse?.testId);
+      setSelectedTests(aiRecommendedIds);
     }
-  }, [isOpen, workerResponse, userSymptom]);
+  }, [isOpen, workerResponse]);
 
   const handleInputChange = (field: keyof MedicalInfo, value: string) => {
     updateField(field, value);
   };
 
   const handleTestToggle = (testId: string) => {
+    // Only allow toggling if test is recommended by AI or if no AI recommendations
+    if (!isTestRecommended(testId, workerResponse?.testId)) {
+      return; // Don't allow toggling disabled tests
+    }
+
     setSelectedTests((prev) =>
       prev.includes(testId)
         ? prev.filter((id) => id !== testId)
         : [...prev, testId]
     );
   };
-
   const handleSubmit = () => {
     // Create comprehensive diagnostic payload with all required information
     const appointmentInput: AppointmentInput = {
-      preferredDate: selectedDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      timeSlot: 'morning', // Default to morning slot
-      notes: `Appointment for ${selectedTests.length} test(s): ${selectedTests.join(', ')}`,
+      preferredDate:
+        selectedDate ||
+        new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split("T")[0],
+      timeSlot: "morning", // Default to morning slot
+      notes: `Appointment for ${
+        selectedTests.length
+      } test(s): ${selectedTests.join(", ")}`,
     };
 
     const testSelection: TestSelection = {
@@ -258,8 +195,8 @@ export default function MedicalInfoDialog({
     };
 
     // Log for debugging
-    console.log('Diagnostic payload:', diagnosticPayload);
-    
+    console.log("Diagnostic payload:", diagnosticPayload);
+
     // Pass comprehensive payload to parent
     onSubmit(diagnosticPayload);
   };
@@ -273,7 +210,7 @@ export default function MedicalInfoDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] overflow-y-auto w-5xl">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-gray-900">
             Complete Your Medical Information
@@ -291,6 +228,7 @@ export default function MedicalInfoDialog({
                 <Label htmlFor="firstName">First Name *</Label>
                 <Input
                   id="firstName"
+                  className="mt-2"
                   value={medicalInfo.firstName}
                   onChange={(e) =>
                     handleInputChange("firstName", e.target.value)
@@ -302,6 +240,7 @@ export default function MedicalInfoDialog({
                 <Label htmlFor="lastName">Last Name *</Label>
                 <Input
                   id="lastName"
+                  className="mt-2"
                   value={medicalInfo.lastName}
                   onChange={(e) =>
                     handleInputChange("lastName", e.target.value)
@@ -314,6 +253,7 @@ export default function MedicalInfoDialog({
                 <Input
                   id="email"
                   type="email"
+                  className="mt-2"
                   value={medicalInfo.email}
                   onChange={(e) => handleInputChange("email", e.target.value)}
                   placeholder="john.doe@email.com"
@@ -323,6 +263,7 @@ export default function MedicalInfoDialog({
                 <Label htmlFor="phone">Phone Number *</Label>
                 <Input
                   id="phone"
+                  className="mt-2"
                   type="tel"
                   value={medicalInfo.phone}
                   onChange={(e) => handleInputChange("phone", e.target.value)}
@@ -334,10 +275,9 @@ export default function MedicalInfoDialog({
                 <Input
                   id="dob"
                   type="date"
+                  className="mt-2"
                   value={medicalInfo.dob}
-                  onChange={(e) =>
-                    handleInputChange("dob", e.target.value)
-                  }
+                  onChange={(e) => handleInputChange("dob", e.target.value)}
                 />
               </div>
             </div>
@@ -354,6 +294,7 @@ export default function MedicalInfoDialog({
                 <Input
                   id="street"
                   value={medicalInfo.street}
+                  className="mt-2"
                   onChange={(e) => handleInputChange("street", e.target.value)}
                   placeholder="123 Main Street"
                 />
@@ -364,6 +305,7 @@ export default function MedicalInfoDialog({
                   <Input
                     id="city"
                     value={medicalInfo.city}
+                    className="mt-2"
                     onChange={(e) => handleInputChange("city", e.target.value)}
                     placeholder="Tampa"
                   />
@@ -373,6 +315,7 @@ export default function MedicalInfoDialog({
                   <Input
                     id="state"
                     value={medicalInfo.state}
+                    className="mt-2"
                     onChange={(e) => handleInputChange("state", e.target.value)}
                     placeholder="FL"
                   />
@@ -382,9 +325,8 @@ export default function MedicalInfoDialog({
                   <Input
                     id="zip"
                     value={medicalInfo.zip}
-                    onChange={(e) =>
-                      handleInputChange("zip", e.target.value)
-                    }
+                    className="mt-2"
+                    onChange={(e) => handleInputChange("zip", e.target.value)}
                     placeholder="33601"
                   />
                 </div>
@@ -406,7 +348,7 @@ export default function MedicalInfoDialog({
                   onChange={(e) =>
                     handleInputChange("insuranceProvider", e.target.value)
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-3 py-2 border mt-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
                   <option value="">Select Insurance Provider</option>
                   <option value="Blue Cross Blue Shield">
@@ -424,6 +366,7 @@ export default function MedicalInfoDialog({
                 <Label htmlFor="insuranceId">Insurance ID</Label>
                 <Input
                   id="insuranceId"
+                  className="mt-2"
                   value={medicalInfo.insuranceId}
                   onChange={(e) =>
                     handleInputChange("insuranceId", e.target.value)
@@ -435,6 +378,7 @@ export default function MedicalInfoDialog({
                 <Label htmlFor="groupNumber">Group Number</Label>
                 <Input
                   id="groupNumber"
+                  className="mt-2"
                   value={medicalInfo.groupNumber}
                   onChange={(e) =>
                     handleInputChange("groupNumber", e.target.value)
@@ -455,43 +399,76 @@ export default function MedicalInfoDialog({
               recommended tests. You can modify the selection below:
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {MEDICAL_TESTS.map((test) => (
-                <div
-                  key={test.id}
-                  className={`border rounded-lg p-4 ${
-                    selectedTests.includes(test.id)
-                      ? "border-purple-300 bg-purple-50"
-                      : "border-gray-200"
-                  }`}
-                >
-                  <div className="flex items-start space-x-3">
-                    <Checkbox
-                      id={test.id}
-                      checked={selectedTests.includes(test.id)}
-                      onCheckedChange={() => handleTestToggle(test.id)}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <label
-                        htmlFor={test.id}
-                        className="text-sm font-medium text-gray-900 cursor-pointer"
-                      >
-                        {test.name}
-                      </label>
-                      <p className="text-xs text-gray-600 mt-1">
-                        {test.description}
-                      </p>
-                      <div className="flex justify-between items-center mt-2">
-                        <span className="text-xs text-purple-600 font-medium">
-                          {test.price}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          {test.duration}
-                        </span>
+              {MEDICAL_TESTS.map((test) => {
+                const isRecommended = isTestRecommended(
+                  test.id,
+                  workerResponse?.testId
+                );
+                const isSelected = selectedTests.includes(test.id);
+                const isDisabled = !isRecommended;
+
+                return (
+                  <div
+                    key={test.id}
+                    className={`border rounded-lg p-4 transition-all ${
+                      isSelected
+                        ? "border-purple-300 bg-purple-50"
+                        : isDisabled
+                        ? "border-gray-100 bg-gray-50 opacity-60"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    <div className="flex items-start space-x-3">
+                      <Checkbox
+                        id={test.id}
+                        checked={isSelected}
+                        disabled={isDisabled}
+                        onCheckedChange={() => handleTestToggle(test.id)}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <label
+                          htmlFor={test.id}
+                          className={`text-sm font-medium ${
+                            isDisabled
+                              ? "text-gray-400 cursor-not-allowed"
+                              : "text-gray-900 cursor-pointer"
+                          }`}
+                        >
+                          {test.name}
+                          {isRecommended && (
+                            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              AI Recommended
+                            </span>
+                          )}
+                        </label>
+                        <p
+                          className={`text-xs mt-1 ${
+                            isDisabled ? "text-gray-400" : "text-gray-600"
+                          }`}
+                        >
+                          {test.description}
+                        </p>
+                        <div className="flex justify-between items-center mt-2">
+                          <span
+                            className={`text-xs font-medium ${
+                              isDisabled ? "text-gray-400" : "text-purple-600"
+                            }`}
+                          >
+                            {test.price}
+                          </span>
+                          <span
+                            className={`text-xs ${
+                              isDisabled ? "text-gray-400" : "text-gray-500"
+                            }`}
+                          >
+                            {test.duration}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -511,12 +488,13 @@ export default function MedicalInfoDialog({
               Select Preferred Appointment Date
             </h3>
             <p className="text-sm text-gray-600 mb-4">
-              Choose your preferred date for the medical tests. We'll confirm availability and send you appointment details.
+              Choose your preferred date for the medical tests. We'll confirm
+              availability and send you appointment details.
             </p>
             <AvailabilityCalendar
-              initial={null}                      // Start with no pre-selected date
-              onChange={setSelectedDate}          // Update local state with selected date
-              className="rounded-2xl"             // Match modal's rounded design
+              initial={null} // Start with no pre-selected date
+              onChange={setSelectedDate} // Update local state with selected date
+              className="rounded-2xl" // Match modal's rounded design
             />
           </div>
 

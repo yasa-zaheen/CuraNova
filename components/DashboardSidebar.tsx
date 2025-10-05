@@ -1,10 +1,15 @@
 "use client";
 
-import { Compass, File, History, Library } from "lucide-react";
-import Image from "next/image";
+// Next
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+
+// Clerk
 import { useUser } from "@clerk/nextjs";
+
+// Lucide
+import { Compass, File, History, Library } from "lucide-react";
 
 interface Diagnostic {
   id: string;
@@ -27,11 +32,15 @@ function DashboardSidebar({
   } | null;
   displayName: string;
 }) {
+  // States
   const [diagnostics, setDiagnostics] = useState<Diagnostic[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Hooks
   const router = useRouter();
   const { user: clerkUser } = useUser();
 
+  // Effects
   useEffect(() => {
     const fetchDiagnostics = async () => {
       if (!clerkUser?.id) return;
@@ -52,21 +61,23 @@ function DashboardSidebar({
     fetchDiagnostics();
   }, [clerkUser?.id]);
 
+  // Functions
   const handleDiagnosticClick = (diagnosticId: string) => {
     router.push(`/diagnostics/${diagnosticId}`);
   };
+
   return (
     <aside className="w-1/5 bg-gray-50 border-r border-gray-100 flex flex-col justify-between h-screen">
       <div>
+        {/* Header */}
         <div className="px-4 py-4 flex items-center gap-3 border-gray-100">
           <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-400 to-indigo-400 flex items-center justify-center text-white font-bold">
             CN
           </div>
           <div className="text-sm font-semibold">CuraNova</div>
         </div>
-
         <hr className="mx-4" />
-
+        {/* Menu Options */}
         <nav className="px-3 py-4 space-y-1 text-sm text-gray-700">
           <div className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100">
             <Compass className="w-4 h-4" />
@@ -85,9 +96,9 @@ function DashboardSidebar({
             History
           </div>
         </nav>
-
         <hr className="mx-4" />
 
+        {/* Diagnostics Information */}
         <div className="px-4 mt-4">
           <div className="text-xs text-gray-500 mb-2">Diagnostics</div>
           <div className="space-y-2 max-h-64 overflow-y-auto">
