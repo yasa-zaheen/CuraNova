@@ -7,7 +7,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -924,10 +923,10 @@ export default function DiagnosticDetailsPage() {
                             test.status === "pending"
                               ? "bg-yellow-100 text-yellow-800"
                               : test.status === "completed"
-                              ? "bg-green-100 text-green-800"
-                              : test.status === "in_progress"
-                              ? "bg-blue-100 text-blue-800"
-                              : "bg-gray-100 text-gray-800"
+                                ? "bg-green-100 text-green-800"
+                                : test.status === "in_progress"
+                                  ? "bg-blue-100 text-blue-800"
+                                  : "bg-gray-100 text-gray-800"
                           }`}
                         >
                           {test.status.charAt(0).toUpperCase() +
@@ -1104,8 +1103,8 @@ export default function DiagnosticDetailsPage() {
                   </h3>
                   <p className="text-gray-600 text-sm mb-4 max-w-sm mx-auto">
                     Complete your diabetes screening test below. If high risk is
-                    detected, you'll be able to schedule an appointment with a
-                    doctor automatically.
+                    detected, you&apos;ll be able to schedule an appointment
+                    with a doctor automatically.
                   </p>
                   <Button
                     onClick={() => (window.location.href = "/appointments")}
@@ -1141,10 +1140,10 @@ export default function DiagnosticDetailsPage() {
                                   appointment.status === "scheduled"
                                     ? "bg-yellow-100 text-yellow-800"
                                     : appointment.status === "confirmed"
-                                    ? "bg-green-100 text-green-800"
-                                    : appointment.status === "completed"
-                                    ? "bg-blue-100 text-blue-800"
-                                    : "bg-red-100 text-red-800"
+                                      ? "bg-green-100 text-green-800"
+                                      : appointment.status === "completed"
+                                        ? "bg-blue-100 text-blue-800"
+                                        : "bg-red-100 text-red-800"
                                 }`}
                               >
                                 {appointment.status.charAt(0).toUpperCase() +
