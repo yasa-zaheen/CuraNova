@@ -35,6 +35,16 @@ interface TestRecord {
   test_id: string;
 }
 
+interface Appointment {
+  id: string;
+  user_id: string;
+  diagnostic_id: string;
+  appointment_date: string;
+  appointment_time: string;
+  status: string;
+  created_at: string;
+}
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
@@ -59,10 +69,14 @@ interface MLResponse {
 
 function DiabetesTestModal({
   test,
+  diagnostic,
   onClose,
+  onAppointmentBooked,
 }: {
   test: TestRecord;
+  diagnostic: DiagnosticRecord;
   onClose: () => void;
+  onAppointmentBooked?: () => void;
 }) {
   const [formData, setFormData] = useState<DiabetesFormData>({
     pregnancies: 0,
@@ -230,6 +244,53 @@ function DiabetesTestModal({
                 </p>
               )}
             </div>
+
+            {/* Show appointment booking if probability > 50% */}
+            {result.probability > 0.5 && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-800 text-sm font-medium mb-3">
+                  ⚠️ High risk detected. We recommend scheduling an appointment
+                  with a doctor.
+                </p>
+                <Button
+                  onClick={async () => {
+                    try {
+                      const response = await fetch("/api/appointments", {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                          userId: diagnostic?.user_id,
+                          diagnosticId: test.diagnostic_id,
+                        }),
+                      });
+
+                      const data = await response.json();
+
+                      if (response.ok) {
+                        alert(
+                          "✅ Appointment scheduled successfully! Check the appointments section below or visit /appointments to manage it."
+                        );
+                        onAppointmentBooked?.();
+                      } else {
+                        alert(
+                          "❌ Failed to submit appointment request. Please try again."
+                        );
+                      }
+                    } catch (error) {
+                      console.error("Error booking appointment:", error);
+                      alert(
+                        "❌ Error submitting appointment request. Please try again."
+                      );
+                    }
+                  }}
+                  className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white"
+                >
+                  📅 Schedule Doctor Appointment
+                </Button>
+              </div>
+            )}
           </div>
         )}
 
@@ -252,13 +313,24 @@ function DiabetesTestModal({
 
 function TestResultModal({
   test,
+  diagnostic,
   onClose,
+  onAppointmentBooked,
 }: {
   test: TestRecord;
+  diagnostic: DiagnosticRecord;
   onClose: () => void;
+  onAppointmentBooked?: () => void;
 }) {
   if (test.test_id === "fasting_glucose_blood_test") {
-    return <DiabetesTestModal test={test} onClose={onClose} />;
+    return (
+      <DiabetesTestModal
+        test={test}
+        diagnostic={diagnostic}
+        onClose={onClose}
+        onAppointmentBooked={onAppointmentBooked}
+      />
+    );
   }
 
   // Default modal for other tests
@@ -296,8 +368,31 @@ export default function DiagnosticDetailsPage() {
   const id = params?.id as string;
   const [diagnostic, setDiagnostic] = useState<DiagnosticRecord | null>(null);
   const [tests, setTests] = useState<TestRecord[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [appointmentsLoading, setAppointmentsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedTest, setSelectedTest] = useState<TestRecord | null>(null);
+
+  const refreshAppointments = async () => {
+    if (!id) return;
+    setAppointmentsLoading(true);
+    try {
+      const { data: appointmentsData, error: appointmentsError } =
+        await supabase
+          .from("appointments")
+          .select("*")
+          .eq("diagnostic_id", id)
+          .order("created_at", { ascending: false });
+
+      if (!appointmentsError) {
+        setAppointments(appointmentsData || []);
+      }
+    } catch (error) {
+      console.error("Error refreshing appointments:", error);
+    } finally {
+      setAppointmentsLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -326,8 +421,21 @@ export default function DiagnosticDetailsPage() {
           console.error("Error fetching tests:", testsError);
         }
 
+        // Fetch appointments for this diagnostic
+        const { data: appointmentsData, error: appointmentsError } =
+          await supabase
+            .from("appointments")
+            .select("*")
+            .eq("diagnostic_id", id)
+            .order("created_at", { ascending: false });
+
+        if (appointmentsError) {
+          console.error("Error fetching appointments:", appointmentsError);
+        }
+
         setDiagnostic(diagnosticData);
         setTests(testsData || []);
+        setAppointments(appointmentsData || []);
       } catch (error) {
         console.error("Error:", error);
       } finally {
@@ -598,6 +706,137 @@ export default function DiagnosticDetailsPage() {
               </div>
             </div>
 
+            {/* Appointments Section */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  📅 Appointments{" "}
+                  {appointmentsLoading && (
+                    <span className="ml-2 text-sm text-gray-500">
+                      (updating...)
+                    </span>
+                  )}
+                </h2>
+                {appointments.length > 0 && (
+                  <Button
+                    onClick={() => (window.location.href = "/appointments")}
+                    variant="outline"
+                    size="sm"
+                    className="text-purple-600 border-purple-300 hover:bg-purple-50"
+                  >
+                    View All
+                  </Button>
+                )}
+              </div>
+
+              {appointments.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-4xl mb-3">🩺</div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    No Appointments Yet
+                  </h3>
+                  <p className="text-gray-600 text-sm mb-4 max-w-sm mx-auto">
+                    Complete your diabetes screening test below. If high risk is
+                    detected, you'll be able to schedule an appointment with a
+                    doctor automatically.
+                  </p>
+                  <Button
+                    onClick={() => (window.location.href = "/appointments")}
+                    variant="outline"
+                    size="sm"
+                    className="text-purple-600 border-purple-300 hover:bg-purple-50"
+                  >
+                    View Appointments Page
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {appointments.slice(0, 2).map((appointment) => {
+                    const appointmentDate = new Date(
+                      appointment.appointment_date
+                    );
+                    const isUpcoming = appointmentDate > new Date();
+
+                    return (
+                      <div
+                        key={appointment.id}
+                        className="border border-gray-200 rounded-lg p-3 hover:border-purple-300 hover:bg-purple-50 transition-colors cursor-pointer"
+                        onClick={() => (window.location.href = "/appointments")}
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-medium text-gray-900">
+                                Dr. Sarah Johnson
+                              </span>
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                  appointment.status === "scheduled"
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : appointment.status === "confirmed"
+                                    ? "bg-green-100 text-green-800"
+                                    : appointment.status === "completed"
+                                    ? "bg-blue-100 text-blue-800"
+                                    : "bg-red-100 text-red-800"
+                                }`}
+                              >
+                                {appointment.status.charAt(0).toUpperCase() +
+                                  appointment.status.slice(1)}
+                              </span>
+                            </div>
+
+                            <div className="text-sm text-gray-600">
+                              <div className="flex items-center gap-1">
+                                <span>📅</span>
+                                <span>
+                                  {appointmentDate.toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                  })}
+                                </span>
+                                <span>•</span>
+                                <span>{appointment.appointment_time}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {isUpcoming && (
+                            <div className="text-xs text-purple-600 font-medium">
+                              {Math.ceil(
+                                (appointmentDate.getTime() -
+                                  new Date().getTime()) /
+                                  (1000 * 60 * 60 * 24)
+                              )}{" "}
+                              days
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="text-xs text-gray-500">
+                          Click to manage appointment
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {appointments.length > 2 && (
+                    <div className="text-center pt-2">
+                      <Button
+                        onClick={() => (window.location.href = "/appointments")}
+                        variant="ghost"
+                        size="sm"
+                        className="text-purple-600 hover:text-purple-700"
+                      >
+                        +{appointments.length - 2} more appointment
+                        {appointments.length - 2 > 1 ? "s" : ""}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Quick Actions */}
             {/* <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
@@ -680,7 +919,9 @@ export default function DiagnosticDetailsPage() {
         >
           <TestResultModal
             test={selectedTest}
+            diagnostic={diagnostic}
             onClose={() => setSelectedTest(null)}
+            onAppointmentBooked={refreshAppointments}
           />
         </Dialog>
       )}
