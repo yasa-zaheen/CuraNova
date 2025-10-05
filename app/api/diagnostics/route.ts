@@ -8,6 +8,8 @@ interface DiagnosticsRequest {
   hospital: string;
   scheduledDate: string;
   testName?: string;
+  testId?: string;
+  selectedTests?: string[]; // Array of selected test IDs/names
 }
 
 interface DiagnosticsRecord {
@@ -48,7 +50,7 @@ export async function POST(request: NextRequest) {
     const supabase = createSupabaseServerClient();
 
     // Prepare data for insertion
-    const diagnosticData = {
+    const diagnosticInsertData = {
       user_id: body.userId,
       symptom: body.symptom,
       ai_summary: body.aiSummary,
@@ -58,36 +60,81 @@ export async function POST(request: NextRequest) {
       status: "scheduled",
     };
 
-    // Insert into Supabase
-    const { data, error } = await supabase
+    // Insert into Supabase diagnostics table
+    const { data: diagnosticRecord, error: diagnosticError } = await supabase
       .from("diagnostics")
-      .insert(diagnosticData)
+      .insert(diagnosticInsertData)
       .select()
       .single();
 
-    if (error) {
-      console.error("Supabase error:", error);
+    if (diagnosticError) {
+      console.error("Supabase diagnostic error:", diagnosticError);
       return NextResponse.json(
         {
           error: "Failed to create diagnostic record",
-          details: error.message,
+          details: diagnosticError.message,
         },
         { status: 500 }
       );
     }
 
-    // Return the created record
+    // Create test records in tests table for each selected test
+    let testData: any[] = [];
+    const testsToCreate =
+      body.selectedTests || (body.testName ? [body.testName] : []);
+
+    if (testsToCreate.length > 0) {
+      // Create multiple test records
+      const testRecords = testsToCreate.map((testName) => ({
+        diagnostic_id: diagnosticRecord.id,
+        test_name: testName,
+        test_id: body.testId || testName, // Use testId from request, fallback to testName
+        status: "pending", // Initial status
+        result_file: null, // No result file initially
+      }));
+
+      const { data: createdTests, error: testError } = await supabase
+        .from("tests")
+        .insert(testRecords)
+        .select();
+
+      if (testError) {
+        console.error("Supabase test creation error:", testError);
+        // Don't fail the whole request, but log the error
+        console.warn(
+          "Failed to create test records, but diagnostic was created successfully"
+        );
+      } else {
+        testData = createdTests.map((test) => ({
+          id: test.id,
+          diagnosticId: test.diagnostic_id,
+          testName: test.test_name,
+          testId: test.test_id,
+          status: test.status,
+          resultFile: test.result_file,
+          createdAt: test.created_at,
+          updatedAt: test.updated_at,
+        }));
+        console.log(
+          `${testData.length} test records created successfully:`,
+          testData
+        );
+      }
+    }
+
+    // Return the created record with test information
     return NextResponse.json({
-      id: data.id,
-      userId: data.user_id,
-      symptom: data.symptom,
-      aiSummary: data.ai_summary,
-      hospital: data.hospital,
-      scheduledDate: data.scheduled_date,
-      testName: data.test_name,
-      status: data.status,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
+      id: diagnosticRecord.id,
+      userId: diagnosticRecord.user_id,
+      symptom: diagnosticRecord.symptom,
+      aiSummary: diagnosticRecord.ai_summary,
+      hospital: diagnosticRecord.hospital,
+      scheduledDate: diagnosticRecord.scheduled_date,
+      testName: diagnosticRecord.test_name,
+      status: diagnosticRecord.status,
+      createdAt: diagnosticRecord.created_at,
+      updatedAt: diagnosticRecord.updated_at,
+      tests: testData, // Include created test data (array)
     });
   } catch (error) {
     console.error("Error creating diagnostic record:", error);
