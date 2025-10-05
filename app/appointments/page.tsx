@@ -220,7 +220,7 @@ export default function AppointmentsPage() {
               No Appointments Scheduled
             </h3>
             <p className="text-gray-600 mb-6">
-              You don't have any appointments scheduled yet. Complete a
+              You don&apos;t have any appointments scheduled yet. Complete a
               diagnostic test with high-risk results to schedule an appointment
               with a doctor.
             </p>

@@ -3,7 +3,6 @@
 // Next
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 
 // Clerk
 import { UserButton, useUser } from "@clerk/nextjs";
@@ -22,16 +21,7 @@ interface Diagnostic {
   createdAt: string;
 }
 
-function DashboardSidebar({
-  user,
-  displayName,
-}: {
-  user?: {
-    firstName?: string | null;
-    fullName?: string | null;
-  } | null;
-  displayName: string;
-}) {
+function DashboardSidebar({ displayName }: { displayName?: string }) {
   // States
   const [diagnostics, setDiagnostics] = useState<Diagnostic[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -158,10 +148,10 @@ function DashboardSidebar({
           <UserButton />
         ) : (
           <div className="h-9 w-9 rounded-full bg-gradient-to-r from-purple-400 to-pink-400 flex items-center justify-center text-white text-sm font-semibold">
-            {displayName.charAt(0).toUpperCase()}
+            {displayName?.charAt(0).toUpperCase() || "U"}
           </div>
         )}
-        <div className="text-sm font-semibold">{displayName}</div>
+        <div className="text-sm font-semibold">{displayName || "User"}</div>
       </div>
     </aside>
   );

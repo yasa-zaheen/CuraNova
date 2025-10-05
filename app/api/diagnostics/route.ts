@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create test records in tests table for each selected test
-    let testData: any[] = [];
+    let testData: Record<string, unknown>[] = [];
     const testsToCreate =
       body.selectedTests || (body.testName ? [body.testName] : []);
 
