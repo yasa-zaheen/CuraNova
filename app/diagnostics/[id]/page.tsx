@@ -99,6 +99,7 @@ function DiabetesTestModal({
       });
 
       const data = await response.json();
+
       setResult(data);
     } catch (error) {
       console.error("Error submitting diabetes test:", error);
