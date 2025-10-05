@@ -9,7 +9,7 @@ import Image from "next/image";
 import { UserButton, useUser } from "@clerk/nextjs";
 
 // Lucide
-import { Compass, File, History, Library } from "lucide-react";
+import { Home, LayoutDashboard, Calendar } from "lucide-react";
 
 interface Diagnostic {
   id: string;
@@ -79,21 +79,26 @@ function DashboardSidebar({
         <hr className="mx-4" />
         {/* Menu Options */}
         <nav className="px-3 py-4 space-y-1 text-sm text-gray-700">
-          <div className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100">
-            <Compass className="w-4 h-4" />
-            Explore
+          <div
+            className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100 cursor-pointer transition-colors"
+            onClick={() => router.push("/")}
+          >
+            <Home className="w-4 h-4" />
+            Home
           </div>
-          <div className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100">
-            <Library className="w-4 h-4" />
-            Library
+          <div
+            className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100 cursor-pointer transition-colors"
+            onClick={() => router.push("/dashboard")}
+          >
+            <LayoutDashboard className="w-4 h-4" />
+            Dashboard
           </div>
-          <div className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100">
-            <File className="w-4 h-4" />
-            Files
-          </div>
-          <div className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100">
-            <History className="w-4 h-4" />
-            History
+          <div
+            className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100 cursor-pointer transition-colors"
+            onClick={() => router.push("/appointments")}
+          >
+            <Calendar className="w-4 h-4" />
+            Appointments
           </div>
         </nav>
         <hr className="mx-4" />

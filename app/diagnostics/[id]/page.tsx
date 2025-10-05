@@ -67,6 +67,22 @@ interface MLResponse {
   message?: string;
 }
 
+interface CardiovascularFormData {
+  age: number;
+  sex: string;
+  is_smoking: string;
+  cigsPerDay: number;
+  BPMeds: number;
+  prevalentStroke: number;
+  prevalentHyp: number;
+  diabetes: number;
+  totChol: number;
+  sysBP: number;
+  diaBP: number;
+  BMI: number;
+  heartRate: number;
+}
+
 function DiabetesTestModal({
   test,
   diagnostic,
@@ -311,6 +327,346 @@ function DiabetesTestModal({
   );
 }
 
+function CardiovascularTestModal({
+  test,
+  diagnostic,
+  onClose,
+  onAppointmentBooked,
+}: {
+  test: TestRecord;
+  diagnostic: DiagnosticRecord;
+  onClose: () => void;
+  onAppointmentBooked?: () => void;
+}) {
+  const [formData, setFormData] = useState<CardiovascularFormData>({
+    age: 0,
+    sex: "M",
+    is_smoking: "NO",
+    cigsPerDay: 0,
+    BPMeds: 0,
+    prevalentStroke: 0,
+    prevalentHyp: 0,
+    diabetes: 0,
+    totChol: 0,
+    sysBP: 0,
+    diaBP: 0,
+    BMI: 0,
+    heartRate: 0,
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [result, setResult] = useState<MLResponse | null>(null);
+
+  const handleInputChange = (
+    field: keyof CardiovascularFormData,
+    value: string | number
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]:
+        typeof value === "string" ? value : parseFloat(value.toString()) || 0,
+    }));
+  };
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    try {
+      // Encode Yes/No and M/F values properly
+      const encodedData = {
+        ...formData,
+        sex: formData.sex === "M" ? "M" : "F",
+        is_smoking: formData.is_smoking === "YES" ? "YES" : "NO",
+        BPMeds: Number(formData.BPMeds) === 1 ? 1 : 0,
+        prevalentStroke: Number(formData.prevalentStroke) === 1 ? 1 : 0,
+        prevalentHyp: Number(formData.prevalentHyp) === 1 ? 1 : 0,
+        diabetes: Number(formData.diabetes) === 1 ? 1 : 0,
+      };
+
+      const response = await fetch("/api/predict-heart", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          testId: test.id,
+          ...encodedData,
+        }),
+      });
+
+      const data = await response.json();
+      setResult(data);
+    } catch (error) {
+      console.error("Error submitting cardiovascular test:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogHeader>
+        <DialogTitle>Heart Disease Test Results - {test.test_name}</DialogTitle>
+      </DialogHeader>
+
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="age">Age</Label>
+            <Input
+              id="age"
+              className="mt-2"
+              type="number"
+              min="0"
+              max="120"
+              value={formData.age}
+              onChange={(e) => handleInputChange("age", e.target.value)}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="sex">Sex</Label>
+            <select
+              id="sex"
+              value={formData.sex}
+              onChange={(e) => handleInputChange("sex", e.target.value)}
+              className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="M">Male</option>
+              <option value="F">Female</option>
+            </select>
+          </div>
+
+          <div>
+            <Label htmlFor="is_smoking">Smoking Status</Label>
+            <select
+              id="is_smoking"
+              value={formData.is_smoking}
+              onChange={(e) => handleInputChange("is_smoking", e.target.value)}
+              className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="NO">No</option>
+              <option value="YES">Yes</option>
+            </select>
+          </div>
+
+          <div>
+            <Label htmlFor="cigsPerDay">Cigarettes Per Day</Label>
+            <Input
+              id="cigsPerDay"
+              className="mt-2"
+              type="number"
+              min="0"
+              value={formData.cigsPerDay}
+              onChange={(e) => handleInputChange("cigsPerDay", e.target.value)}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="BPMeds">BP Medications</Label>
+            <select
+              id="BPMeds"
+              value={formData.BPMeds}
+              onChange={(e) => handleInputChange("BPMeds", e.target.value)}
+              className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value={0}>No</option>
+              <option value={1}>Yes</option>
+            </select>
+          </div>
+
+          <div>
+            <Label htmlFor="prevalentStroke">Previous Stroke</Label>
+            <select
+              id="prevalentStroke"
+              value={formData.prevalentStroke}
+              onChange={(e) =>
+                handleInputChange("prevalentStroke", e.target.value)
+              }
+              className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value={0}>No</option>
+              <option value={1}>Yes</option>
+            </select>
+          </div>
+
+          <div>
+            <Label htmlFor="prevalentHyp">Hypertension</Label>
+            <select
+              id="prevalentHyp"
+              value={formData.prevalentHyp}
+              onChange={(e) =>
+                handleInputChange("prevalentHyp", e.target.value)
+              }
+              className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value={0}>No</option>
+              <option value={1}>Yes</option>
+            </select>
+          </div>
+
+          <div>
+            <Label htmlFor="diabetes">Diabetes</Label>
+            <select
+              id="diabetes"
+              value={formData.diabetes}
+              onChange={(e) => handleInputChange("diabetes", e.target.value)}
+              className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value={0}>No</option>
+              <option value={1}>Yes</option>
+            </select>
+          </div>
+
+          <div>
+            <Label htmlFor="totChol">Total Cholesterol (mg/dL)</Label>
+            <Input
+              id="totChol"
+              className="mt-2"
+              type="number"
+              min="0"
+              value={formData.totChol}
+              onChange={(e) => handleInputChange("totChol", e.target.value)}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="sysBP">Systolic BP (mmHg)</Label>
+            <Input
+              id="sysBP"
+              className="mt-2"
+              type="number"
+              min="0"
+              value={formData.sysBP}
+              onChange={(e) => handleInputChange("sysBP", e.target.value)}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="diaBP">Diastolic BP (mmHg)</Label>
+            <Input
+              id="diaBP"
+              className="mt-2"
+              type="number"
+              min="0"
+              value={formData.diaBP}
+              onChange={(e) => handleInputChange("diaBP", e.target.value)}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="BMI">BMI</Label>
+            <Input
+              id="BMI"
+              className="mt-2"
+              type="number"
+              min="0"
+              step="0.1"
+              value={formData.BMI}
+              onChange={(e) => handleInputChange("BMI", e.target.value)}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="heartRate">Heart Rate (bpm)</Label>
+            <Input
+              id="heartRate"
+              className="mt-2"
+              type="number"
+              min="0"
+              value={formData.heartRate}
+              onChange={(e) => handleInputChange("heartRate", e.target.value)}
+            />
+          </div>
+        </div>
+
+        {result && (
+          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h3 className="font-semibold text-blue-900 mb-2">
+              ML Model Results
+            </h3>
+            <div className="space-y-2 text-sm">
+              <p>
+                <strong>Risk Level:</strong>{" "}
+                {result.prediction === 1
+                  ? "High Risk for Heart Disease"
+                  : "Low Risk for Heart Disease"}
+              </p>
+              <p>
+                <strong>Probability:</strong>{" "}
+                {(result.probability * 100).toFixed(2)}%
+              </p>
+              {result.message && (
+                <p>
+                  <strong>Note:</strong> {result.message}
+                </p>
+              )}
+            </div>
+
+            {/* Show appointment booking if high risk detected */}
+            {result.probability > 0.5 && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-800 text-sm font-medium mb-3">
+                  ⚠️ High cardiovascular risk detected. We recommend scheduling
+                  an appointment with a cardiologist.
+                </p>
+                <Button
+                  onClick={async () => {
+                    try {
+                      const response = await fetch("/api/appointments", {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                          userId: diagnostic?.user_id,
+                          diagnosticId: test.diagnostic_id,
+                        }),
+                      });
+
+                      const data = await response.json();
+
+                      if (response.ok) {
+                        alert(
+                          "✅ Appointment scheduled successfully! Check the appointments section below or visit /appointments to manage it."
+                        );
+                        onAppointmentBooked?.();
+                      } else {
+                        alert(
+                          "❌ Failed to submit appointment request. Please try again."
+                        );
+                      }
+                    } catch (error) {
+                      console.error("Error booking appointment:", error);
+                      alert(
+                        "❌ Error submitting appointment request. Please try again."
+                      );
+                    }
+                  }}
+                  className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white"
+                >
+                  📅 Schedule Cardiologist Appointment
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex gap-2 pt-4">
+          <Button variant="outline" onClick={onClose} className="flex-1">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            className="flex-1 bg-gradient-to-r from-purple-400 to-pink-400 hover:from-purple-500 hover:to-pink-500"
+          >
+            {isSubmitting ? "Processing..." : "Run ML Prediction"}
+          </Button>
+        </div>
+      </div>
+    </DialogContent>
+  );
+}
+
 function TestResultModal({
   test,
   diagnostic,
@@ -325,6 +681,17 @@ function TestResultModal({
   if (test.test_id === "fasting_glucose_blood_test") {
     return (
       <DiabetesTestModal
+        test={test}
+        diagnostic={diagnostic}
+        onClose={onClose}
+        onAppointmentBooked={onAppointmentBooked}
+      />
+    );
+  }
+
+  if (test.test_id === "cardiovascular_risk_panel") {
+    return (
+      <CardiovascularTestModal
         test={test}
         diagnostic={diagnostic}
         onClose={onClose}
